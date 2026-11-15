@@ -4,10 +4,10 @@
   const STORE_KEY = "aura-debt:v1";
   const $ = (id) => document.getElementById(id);
   const els = {
-    judge: $("judge"), judgeLine: $("judge-line"), court: $("court"),
+    judge: $("judge"), judgeLine: $("judge-line"), stage: $("stage"), flash: $("flash"),
     desk: $("desk"), verdict: $("verdict"),
-    balance: $("balance"), standing: $("standing"), vibe: $("vibe"), stamp: $("stamp"),
-    entry: $("entry"), counter: $("counter"), status: $("status"), txCount: $("tx-count"), soundBtn: $("sound-toggle"),
+    balance: $("balance"), standing: $("standing"), vibe: $("vibe"), sheetRank: $("sheet-rank"),
+    entry: $("entry"), counter: $("counter"), txCount: $("tx-count"), soundBtn: $("sound-toggle"),
     larpBtn: $("larp-btn"), larpNote: $("larp-note"),
     vBubble: $("v-bubble"), capTyped: $("cap-typed"), caret: $("caret"),
     capResult: $("cap-result"), capTitle: $("cap-title"), capAmount: $("cap-amount"), capNext: $("cap-next"),
@@ -18,6 +18,7 @@
   };
   const actionButtons = Array.from(document.querySelectorAll(".btn[data-mode]"));
   const chips = Array.from(document.querySelectorAll(".chip"));
+  const rings = document.querySelector(".rings");
   const reduceMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -108,7 +109,6 @@
   function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch { /* private mode */ } }
 
   let state = load();
-  let displayed = state.balance;
 
   // ---------- copy ----------
   const nf = new Intl.NumberFormat("en-US");
@@ -128,26 +128,18 @@
   ];
   const tier = (b) => TIERS.find((t) => b <= t.max);
 
-  const PLACEHOLDERS = [
-    "type what you did... e.g. i waved at someone who wasn't waving at me",
-    "type what you did... e.g. i said \"love you\" to my teacher",
-    "type what you did... e.g. i walked into a glass door. the door won.",
-    "type what you did... or paste a text you're scared to send",
+  // typed into the empty box one after another
+  const EXAMPLES = [
+    "i said \"you too\" when the waiter told me to enjoy my meal",
+    "i waved back at someone who was waving at the person behind me",
+    "i called my teacher mom. in front of everyone.",
+    "i walked into a glass door. the door won.",
   ];
   const LOADING = [
-    "Auditor reviewing your account…",
     "the court is deliberating…",
     "checking the group chat…",
     "calculating fanum tax…",
-  ];
-  // what the judge says while you type, by confession length
-  const JUDGE_IDLE = "Order in the court. So… what did you do?";
-  const JUDGE_TYPING = [
-    [1, "go on…"],
-    [40, "oh no."],
-    [90, "bestie why"],
-    [160, "the court needs a minute"],
-    [260, "this is a lot of evidence"],
+    "consulting the elders…",
   ];
   const HOT = /^(aura|cooked|chopped|crashout|sigma|npc|fanum|glazing|rizz|delulu|fumble|fumbled|mewing|him|her|ate|cringe)[.,!?]*$/i;
 
@@ -155,51 +147,133 @@
   let mouthTimer = 0;
   function setJudge(face, mouth = face === "shock" ? "shock" : face === "proud" ? "smile" : "idle", arm = "up") {
     clearTimeout(mouthTimer); // a pending "stop talking" flap must not undo this face
+    delete els.judge.dataset.fidget;
     els.judge.dataset.face = face;
     els.judge.dataset.mouth = mouth;
     els.judge.dataset.arm = arm;
   }
-  let lastLine = "";
-  function judgeSays(text) {
-    if (text === lastLine) return;
-    lastLine = text;
+  // the home-screen bubble only appears when the judge has something to say, then goes away
+  let bubbleTimer = 0;
+  function judgeSays(text, ms = 3200) {
+    clearTimeout(bubbleTimer);
     els.judgeLine.textContent = text;
-    restartAnim(els.judgeLine, "pop");
+    els.judgeLine.classList.add("show");
+    if (ms) bubbleTimer = setTimeout(hush, ms);
   }
+  function hush() { clearTimeout(bubbleTimer); els.judgeLine.classList.remove("show"); }
   function flapMouth() {
     els.judge.dataset.mouth = "talk";
     clearTimeout(mouthTimer);
     mouthTimer = setTimeout(() => { els.judge.dataset.mouth = "idle"; }, 110);
   }
+
+  // eyes: follow the pointer, read along while you type, or get pointed somewhere on purpose
+  let lookLock = false;
+  let lastKey = 0;
+  function look(x, y) {
+    els.judge.style.setProperty("--px", `${x.toFixed(1)}px`);
+    els.judge.style.setProperty("--py", `${y.toFixed(1)}px`);
+  }
+  document.addEventListener("pointermove", (e) => {
+    if (lookLock || performance.now() - lastKey < 1500) return;
+    const r = els.judge.getBoundingClientRect();
+    const dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height * 0.45);
+    const d = Math.hypot(dx, dy) || 1, k = Math.min(1, d / 260);
+    look((dx / d) * 6 * k, (dy / d) * 4.5 * k);
+  });
   function reactToTyping() {
     if (busy || !els.verdict.hidden) return;
     const len = els.entry.value.trim().length;
     document.body.classList.toggle("long-text", len > 160);
-    if (!len) { setJudge("idle"); judgeSays(JUDGE_IDLE); return; }
-    setJudge("typing");
-    let line = JUDGE_TYPING[0][1];
-    for (const [min, text] of JUDGE_TYPING) if (len >= min) line = text;
-    judgeSays(line);
+    if (!len) { setJudge("idle"); look(0, 0); return; }
+    lastKey = performance.now();
+    if (els.judge.dataset.face !== "typing") setJudge("typing");
+    look(((len % 24) / 24 - 0.5) * 9, 4.5);
+  }
+
+  // small things the judge does when nobody is confessing
+  function fidget() {
+    if (reduceMotion() || document.hidden || busy || lookLock || !els.verdict.hidden) return;
+    if (els.judge.dataset.face !== "idle" || els.judge.dataset.fidget || els.entry.value) return;
+    const f = pick(["glance", "glance", "yawn", "wig", "tap"]);
+    if (f === "glance") {
+      lookLock = true;
+      look(-6, 0);
+      setTimeout(() => look(6, 0), 600);
+      setTimeout(() => { look(0, 0); lookLock = false; }, 1200);
+      return;
+    }
+    els.judge.dataset.fidget = f;
+    if (f === "yawn") els.judge.dataset.mouth = "shock";
+    setTimeout(() => {
+      if (els.judge.dataset.fidget !== f) return;
+      delete els.judge.dataset.fidget;
+      if (f === "yawn") els.judge.dataset.mouth = "idle";
+    }, 1600);
+  }
+
+  // line boil: reseed the wobble filters a few times a second so the drawing never sits still
+  const turbs = document.querySelectorAll(".boil-turb");
+  let boilSeed = 1;
+  function boil() {
+    if (document.hidden || reduceMotion()) return;
+    boilSeed = (boilSeed % 5) + 1;
+    turbs.forEach((t) => t.setAttribute("seed", String(boilSeed)));
+  }
+
+  // aura rings spin up while the court deliberates
+  function ringSpeed(rate) {
+    try { els.judge.querySelectorAll(".ring").forEach((g) => g.getAnimations().forEach((a) => { a.playbackRate = rate; })); } catch { /* cosmetic */ }
   }
 
   // ---------- render ----------
-  function paintBalance(value) { els.balance.textContent = fmt(value); }
+  // the balance is an odometer: every digit is a strip of 0-9 that rolls to its value
+  function setBalance(value) {
+    const str = fmt(value);
+    els.balance.setAttribute("aria-label", `${str} aura`);
+    const shape = str.replace(/\d/g, "0");
+    if (els.balance.dataset.shape !== shape) { // digit count or comma positions changed: rebuild the strips
+      els.balance.dataset.shape = shape;
+      els.balance.replaceChildren();
+      for (const ch of str) {
+        const cell = document.createElement("span");
+        cell.setAttribute("aria-hidden", "true");
+        if (/\d/.test(ch)) {
+          cell.className = "od";
+          const strip = document.createElement("span");
+          strip.className = "strip";
+          for (let d = 0; d < 10; d++) { const i = document.createElement("i"); i.textContent = d; strip.append(i); }
+          cell.append(strip);
+        } else {
+          cell.className = "oc";
+          cell.textContent = ch;
+        }
+        els.balance.append(cell);
+      }
+      void els.balance.offsetWidth; // new strips start at 0 and roll from there
+    }
+    Array.from(els.balance.children).forEach((cell, idx) => {
+      if (cell.className !== "od") return;
+      cell.firstChild.style.setProperty("--d", str[idx]);
+      cell.firstChild.style.setProperty("--i", String(str.length - 1 - idx));
+    });
+  }
 
-  function renderStanding(animate = false) {
+  let rankTimer = 0;
+  function renderStanding(announce = false) {
     const b = state.balance;
     const t = tier(b);
     document.body.dataset.tier = t.key;
     document.body.dataset.sign = b < 0 ? "neg" : b > 0 ? "pos" : "zero";
-    els.standing.textContent = t.name;
+    const name = b <= -10000 ? "Sent to collections" : t.name;
+    els.standing.textContent = name;
+    els.sheetRank.textContent = name;
     els.vibe.textContent = t.vibe;
     els.txCount.textContent = state.history.length ? String(state.history.length) : "";
-    const wasHidden = els.stamp.hidden;
-    if (b < 0) {
-      els.stamp.hidden = false;
-      els.stamp.textContent = b <= -10000 ? "sent to collections" : "overdrawn";
-      if (animate && wasHidden) restartAnim(els.stamp, "pop");
-    } else {
-      els.stamp.hidden = true;
+    if (announce) {
+      clearTimeout(rankTimer);
+      els.standing.classList.add("show");
+      rankTimer = setTimeout(() => els.standing.classList.remove("show"), 4500);
     }
   }
 
@@ -207,24 +281,6 @@
     el.classList.remove(cls);
     void el.offsetWidth;
     el.classList.add(cls);
-  }
-
-  let animId = 0;
-  function animateTo(target) {
-    cancelAnimationFrame(animId);
-    const start = displayed;
-    const delta = target - start;
-    if (!delta || reduceMotion()) { displayed = target; paintBalance(target); return; }
-    const dur = Math.min(1300, 500 + Math.abs(delta) / 10);
-    const t0 = performance.now();
-    const step = (now) => {
-      const p = Math.min(1, (now - t0) / dur);
-      displayed = start + delta * (1 - Math.pow(1 - p, 3));
-      paintBalance(displayed);
-      if (p < 1) animId = requestAnimationFrame(step);
-      else displayed = target;
-    };
-    animId = requestAnimationFrame(step);
   }
 
   function renderHistory() {
@@ -251,8 +307,17 @@
   function fillResult(r, mode) {
     const amt = r.aura_change;
     const sign = amt < 0 ? "neg" : "pos";
-    els.capTitle.textContent = r.title;
+    const words = String(r.title).split(/\s+/).filter(Boolean);
+    els.capTitle.replaceChildren(...words.map((w, i) => {
+      const span = document.createElement("span");
+      span.className = "w";
+      span.style.setProperty("--i", String(i));
+      span.textContent = w;
+      return span;
+    }));
+    els.capTitle.setAttribute("aria-label", r.title);
     els.capTitle.className = `chopped ${sign}`;
+    els.capResult.style.setProperty("--d", `${words.length * 120 + 80}ms`);
     els.capAmount.textContent = fmtSigned(amt);
     const unit = document.createElement("small");
     unit.textContent = "AURA";
@@ -320,27 +385,41 @@
   }
 
   async function playVerdict(r, mode) {
+    const still = reduceMotion();
     fillResult(r, mode);
+    hush();
+    // scene change: the desk drops away, the judge moves over, the verdict comes in from the right
     document.body.classList.add("in-verdict");
     document.body.classList.remove("long-text");
-    els.desk.hidden = true;
+    els.desk.inert = true;
+    els.verdict.classList.remove("leaving");
     els.verdict.hidden = false;
     els.capResult.hidden = true;
+    els.capTyped.replaceChildren();
     els.caret.hidden = false;
     els.capNext.textContent = "skip";
     els.capNext.classList.remove("ready");
     setJudge("idle");
+    lookLock = true;
+    look(6, 1);
 
-    if (reduceMotion()) writeWords(r.roast, els.capTyped);
+    if (still) writeWords(r.roast, els.capTyped);
     else {
+      await wait(750);
       const wasTapped = await typeOut(r.roast);
       if (!wasTapped) await Promise.race([wait(700), tapToAdvance()]);
     }
 
-    // BANG
+    // wind up... BANG
+    advance = null;
     els.caret.hidden = true;
+    if (!still) { els.judge.dataset.arm = "wind"; await wait(170); }
+    look(0, 0);
     setJudge(r.aura_change < 0 ? "shock" : "proud", undefined, "down");
-    restartAnim(els.court, "bang");
+    els.flash.classList.toggle("pos", r.aura_change >= 0);
+    restartAnim(els.flash, "go");
+    restartAnim(els.stage, "bang");
+    restartAnim(rings, "burst");
     sfx.result(r.aura_change);
     els.capResult.hidden = false;
     els.capNext.textContent = "continue";
@@ -349,9 +428,13 @@
     await tapToAdvance();
 
     advance = null;
+    if (!still) { els.verdict.classList.add("leaving"); await wait(200); }
     els.verdict.hidden = true;
-    els.desk.hidden = false;
+    els.verdict.classList.remove("leaving");
+    els.desk.inert = false;
     document.body.classList.remove("in-verdict");
+    lookLock = false;
+    if (!still) await wait(450); // let the judge get back to the bench before the number moves
   }
 
   // ---------- receipts ----------
@@ -377,23 +460,26 @@
     if (larpOn) els.larpBtn.disabled = on;
     els.entry.readOnly = on;
     clearInterval(loadingTimer);
-    els.status.className = "status";
+    document.body.classList.toggle("deliberating", on);
+    ringSpeed(on ? 14 : 1);
     if (on) {
       let i = 0;
-      els.status.textContent = LOADING[0];
-      judgeSays("the court is deliberating…");
-      loadingTimer = setInterval(() => { i = (i + 1) % LOADING.length; els.status.textContent = LOADING[i]; }, 1400);
+      setJudge("think");
+      lookLock = true;
+      look(5, -5);
+      judgeSays(LOADING[0], 0);
+      loadingTimer = setInterval(() => { i = (i + 1) % LOADING.length; judgeSays(LOADING[i], 0); }, 1400);
     } else {
-      els.status.textContent = "";
+      lookLock = false;
+      hush();
     }
   }
 
   async function submit(mode) {
     const text = els.entry.value.trim();
     if (!text) {
-      els.status.className = "status err";
-      els.status.textContent = "418 Too Delulu: the box is empty. Type what you did first.";
-      judgeSays("the court cannot audit vibes alone.");
+      judgeSays("418 Too Delulu. type what you did first.");
+      restartAnim(els.entry, "nope");
       sfx.error();
       els.entry.focus();
       return;
@@ -410,9 +496,9 @@
       if (!res.ok) throw new Error(data.detail || `Teller error ${res.status}`);
     } catch (err) {
       setBusy(false);
-      els.status.className = "status err";
-      els.status.textContent = `Case dismissed: ${err.message}`;
-      judgeSays("technical difficulties. try again.");
+      setJudge("idle");
+      look(0, 0);
+      judgeSays(`case dismissed: ${err.message}`, 5000);
       sfx.error();
       return;
     }
@@ -432,16 +518,16 @@
     await playVerdict(verdict, mode);
 
     renderStanding(true);
-    animateTo(state.balance);
+    setBalance(state.balance);
     restartAnim(els.balance, amount < 0 ? "shake" : "bounce");
-    judgeSays(amount < 0 ? "next case. try to do better." : "the court is… impressed?");
-    setTimeout(() => { if (!busy && els.verdict.hidden) { setJudge("idle"); } }, 2500);
+    if (window.matchMedia("(min-width: 821px)").matches) els.entry.focus({ preventScroll: true });
+    setTimeout(() => { if (!busy && els.verdict.hidden && !els.entry.value) setJudge("idle"); }, 2200);
   }
 
   function updateCounter() {
     const len = els.entry.value.length;
+    els.counter.hidden = len <= 900; // only shows up when you are about to hit the limit
     els.counter.textContent = `${len}/1000`;
-    els.counter.classList.toggle("warn", len > 900);
   }
 
   actionButtons.forEach((b) => b.addEventListener("click", () => { sfx.unlock(); sfx.pop(); submit(b.dataset.mode); }));
@@ -451,8 +537,7 @@
     updateCounter();
     reactToTyping();
     els.entry.focus();
-    els.status.className = "status";
-    els.status.textContent = c.dataset.mode === "send" ? "loaded. now hit SHOULD I SEND?" : "loaded. now hit CONFESS.";
+    judgeSays(c.dataset.mode === "send" ? "loaded. now hit SHOULD I SEND?" : "loaded. now hit CONFESS.");
   }));
   els.entry.addEventListener("input", () => { updateCounter(); reactToTyping(); });
   els.entry.addEventListener("keydown", (e) => {
@@ -481,11 +566,13 @@
     closeLog();
     renderHistory();
     renderStanding();
-    animateTo(0);
+    setBalance(0);
     setJudge("idle");
-    judgeSays(JUDGE_IDLE);
   });
-  const paintSound = () => { els.soundBtn.textContent = sfx.on ? "sound on" : "sound off"; els.soundBtn.setAttribute("aria-pressed", String(sfx.on)); };
+  const paintSound = () => {
+    els.soundBtn.setAttribute("aria-pressed", String(sfx.on));
+    els.soundBtn.title = sfx.on ? "Sound on" : "Sound off";
+  };
   els.soundBtn.addEventListener("click", () => { sfx.on = !sfx.on; paintSound(); if (sfx.on) sfx.pop(); });
 
   // LARP check unlocks when the server has the teammate's API configured
@@ -496,15 +583,32 @@
     larpOn = true;
     els.larpBtn.disabled = false;
     els.larpBtn.classList.add("on");
-    els.larpNote.textContent = "is this post a LARP?";
+    els.larpNote.textContent = "";
+    els.larpBtn.title = "Is this post a LARP?";
   }).catch(() => { /* stays locked */ });
 
+  // the empty box types out example confessions, one after another
+  let exampleIdx = 0;
+  async function runPlaceholder() {
+    const lead = "what did you do?  e.g. ";
+    if (reduceMotion()) { els.entry.placeholder = lead + EXAMPLES[0]; return; }
+    for (;;) {
+      const ex = EXAMPLES[exampleIdx];
+      for (let n = 0; n <= ex.length; n++) { els.entry.placeholder = lead + ex.slice(0, n); await wait(42); }
+      await wait(2400);
+      for (let n = ex.length; n >= 0; n -= 3) { els.entry.placeholder = lead + ex.slice(0, n); await wait(18); }
+      exampleIdx = (exampleIdx + 1) % EXAMPLES.length;
+    }
+  }
+
   // ---------- init ----------
-  els.entry.placeholder = pick(PLACEHOLDERS);
   paintSound();
-  paintBalance(state.balance);
+  setBalance(state.balance);
   renderStanding();
   renderHistory();
   updateCounter();
+  runPlaceholder();
+  setInterval(boil, 150);
+  setInterval(fidget, 5200);
   if (window.matchMedia("(min-width: 821px)").matches) els.entry.focus({ preventScroll: true });
 })();

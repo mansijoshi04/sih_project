@@ -12,116 +12,160 @@
 </head>
 <body data-tier="npc" data-sign="zero">
 
+  <!-- "line boil": the wobble that makes the drawing look redrawn by hand every few frames (seeds are cycled in app.js) -->
+  <svg class="defs" width="0" height="0" aria-hidden="true" focusable="false">
+    <filter id="boil" x="-15%" y="-15%" width="130%" height="130%">
+      <feTurbulence class="boil-turb" type="fractalNoise" baseFrequency="0.03" numOctaves="2" seed="1" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="6" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <filter id="boil-s" x="-10%" y="-20%" width="120%" height="140%">
+      <feTurbulence class="boil-turb" type="fractalNoise" baseFrequency="0.045" numOctaves="2" seed="1" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="3" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </svg>
+
   <header class="top">
     <p class="rizz">Aura balances are not legal tender and <span>cannot be exchanged for rizz.</span></p>
     <div class="top-actions">
-      <button type="button" class="mini" id="sound-toggle" aria-pressed="true">sound on</button>
-      <button type="button" class="mini" id="open-receipts" aria-haspopup="dialog">receipts <span class="count" id="tx-count"></span></button>
+      <button type="button" class="icon" id="sound-toggle" aria-pressed="true" aria-label="Sound" title="Sound">
+        <svg viewBox="0 0 32 32" aria-hidden="true">
+          <path d="M5 13 L11 12 L18 6 L19 26 L11 20 L5 20 Z"/>
+          <path class="waves" d="M23 12 C25 14 25 18 23 21 M26 8 C30 13 30 20 26 25"/>
+          <path class="mute" d="M23 12 L29 20 M29 12 L23 20"/>
+        </svg>
+      </button>
+      <button type="button" class="icon" id="open-receipts" aria-haspopup="dialog" aria-label="Receipts" title="Receipts">
+        <svg viewBox="0 0 32 32" aria-hidden="true">
+          <path d="M8 4 L24 5 L25 27 L21 24 L17 28 L13 24 L8 27 Z"/>
+          <path d="M12 10 L20 10 M12 15 L21 15 M12 19 L17 19"/>
+        </svg>
+        <span class="count" id="tx-count"></span>
+      </button>
     </div>
   </header>
 
-  <main class="main">
-    <!-- the court: Hon. Judge Aura (original character, plain SVG) -->
-    <section class="court" id="court">
-      <p class="bubble" id="judge-line">Order in the court. So&hellip; what did you do?</p>
-      <svg class="judge" id="judge" viewBox="0 0 420 470" data-face="idle" data-mouth="idle" data-arm="up" role="img" aria-label="Honourable Judge Aura, a tiny judge in a huge wig">
-        <g stroke="#0d0d10" stroke-width="5" stroke-linejoin="round" stroke-linecap="round">
+  <main class="stage" id="stage">
+    <div class="flash" id="flash" aria-hidden="true"></div>
+
+    <!-- Hon. Judge Aura (original character, plain SVG) -->
+    <div class="judge-wrap" id="court">
+      <p class="bubble" id="judge-line" role="status"></p>
+      <svg class="judge" id="judge" viewBox="0 0 400 440" preserveAspectRatio="xMidYMax meet" data-face="idle" data-mouth="idle" data-arm="up" role="img" aria-label="Honourable Judge Aura, a tiny judge in a huge wig">
+        <defs>
+          <path id="s-wig" d="M118 292 C96 286 92 262 106 250 C88 240 86 212 102 200 C84 184 90 154 108 146 C100 118 120 92 146 94 C152 68 184 54 206 66 C226 50 262 60 266 86 C292 84 312 110 300 138 C320 150 322 182 304 196 C320 212 316 242 298 250 C312 264 306 288 286 292 C270 300 256 290 254 278 L150 278 C148 292 132 300 118 292 Z"/>
+          <path id="s-head" d="M146 190 C144 150 172 134 202 134 C236 134 258 154 256 192 C255 232 232 256 200 256 C166 256 147 230 146 190 Z"/>
+          <path id="s-fringe" d="M140 172 C132 150 146 128 166 132 C172 112 198 108 208 122 C222 108 248 116 250 134 C268 134 274 156 262 172 C256 160 244 158 238 164 C230 150 212 150 206 160 C198 148 178 150 174 162 C164 154 148 158 140 172 Z"/>
+          <path id="s-robe" d="M132 300 C150 262 250 262 268 300 C282 330 290 362 294 384 L106 384 C110 360 118 330 132 300 Z"/>
+          <path id="s-slab" d="M22 372 L378 368 L382 392 L18 394 Z"/>
+          <path id="s-front" d="M34 394 L368 392 L364 438 L38 438 Z"/>
+          <path id="s-plate" d="M86 400 L314 399 L315 432 L85 433 Z"/>
+          <path id="s-ghead" d="M294 180 C292 170 298 164 306 166 L346 176 C354 178 356 186 354 194 C352 202 346 204 338 202 L300 192 C296 190 294 186 294 180 Z"/>
+        </defs>
+
+        <!-- your aura: three wobbly rings behind the judge, coloured by whether you are in debt -->
+        <g class="rings" filter="url(#boil)" fill="none" stroke-linecap="round">
+          <g class="ring r1"><path d="M350 186 C352 270 286 342 198 340 C112 338 48 272 50 188 C52 104 118 38 202 40 C284 42 350 104 356 196" stroke-width="4" stroke-dasharray="120 16 46 12"/></g>
+          <g class="ring r2"><path d="M395 184 C398 296 312 388 198 386 C88 384 2 296 5 188 C8 80 92 -6 202 -4 C306 -2 388 78 398 172" stroke-width="3.5" stroke-dasharray="70 14 150 18"/></g>
+          <g class="ring r3"><path d="M445 196 C442 330 336 438 196 434 C62 430 -46 322 -44 186 C-42 54 66 -54 204 -56 C334 -54 440 48 448 180" stroke-width="3" stroke-dasharray="200 22 60 16"/></g>
+        </g>
+
+        <g class="ink" filter="url(#boil)" stroke="#0d0d10" stroke-width="4.5" stroke-linejoin="round" stroke-linecap="round" fill="none">
           <g class="j-body">
-            <!-- wig side curls -->
-            <g fill="#f6f1e4">
-              <circle cx="122" cy="196" r="24"/><circle cx="114" cy="236" r="25"/><circle cx="120" cy="276" r="24"/><circle cx="130" cy="312" r="21"/>
-              <circle cx="298" cy="196" r="24"/><circle cx="306" cy="236" r="25"/><circle cx="300" cy="276" r="24"/><circle cx="290" cy="312" r="21"/>
-            </g>
-            <!-- robe + jabot -->
-            <path d="M128 318 Q210 268 292 318 L330 420 L90 420 Z" fill="#3a3a48"/>
-            <path d="M188 292 L232 292 L240 318 L226 312 L222 338 L210 326 L198 338 L194 312 L180 318 Z" fill="#ffffff"/>
+            <!-- robe -->
+            <use href="#s-robe" fill="#4a4a54" stroke="none" transform="translate(3 2)"/>
+            <use href="#s-robe"/>
+            <path d="M126 334 l10 -15 M135 344 l12 -18 M146 351 l9 -14 M252 350 l10 -16 M263 342 l9 -15" stroke-width="2.5"/>
+            <path d="M188 264 L212 264 L218 304 L202 297 L200 311 L198 297 L182 304 Z" fill="#f4f1ea"/>
+            <!-- left hand on the bench -->
+            <path d="M112 374 C110 358 146 356 148 374 Z" fill="#f6c79a"/>
+            <path d="M124 364 l0 8 M134 363 l1 9" stroke-width="2.5"/>
 
             <g class="j-head">
-              <ellipse cx="210" cy="214" rx="72" ry="74" fill="#ffcf9e"/>
-              <g fill="#f6f1e4">
-                <circle cx="150" cy="168" r="28"/><circle cx="178" cy="146" r="30"/><circle cx="210" cy="138" r="31"/><circle cx="242" cy="146" r="30"/><circle cx="270" cy="168" r="28"/>
-                <circle cx="136" cy="200" r="20"/><circle cx="284" cy="200" r="20"/>
+              <g class="wig">
+                <use href="#s-wig" fill="#efe9da" stroke="none" transform="translate(3 2)"/>
+                <use href="#s-wig"/>
+                <path stroke-width="3" d="M103 172 c0 -11 17 -11 17 0 c0 9 -11 9 -11 2 M101 226 c0 -11 17 -11 17 0 c0 9 -11 9 -11 2 M116 270 c0 -10 16 -10 16 0 c0 8 -10 8 -10 2 M282 172 c0 -11 17 -11 17 0 c0 9 -11 9 -11 2 M284 226 c0 -11 17 -11 17 0 c0 9 -11 9 -11 2 M270 270 c0 -10 16 -10 16 0 c0 8 -10 8 -10 2 M150 104 c0 -10 16 -10 16 0 c0 8 -10 8 -10 2 M198 84 c0 -10 16 -10 16 0 c0 8 -10 8 -10 2 M244 104 c0 -10 16 -10 16 0 c0 8 -10 8 -10 2"/>
               </g>
-              <ellipse cx="168" cy="242" rx="13" ry="8" fill="#ff8fb8" stroke="none" opacity=".75"/>
-              <ellipse cx="252" cy="242" rx="13" ry="8" fill="#ff8fb8" stroke="none" opacity=".75"/>
-
-              <!-- face: idle / typing (unimpressed squint) -->
-              <g class="f f-idle">
-                <path d="M166 200 Q182 192 198 200" fill="none" stroke-width="6"/>
-                <path d="M222 200 Q238 192 254 200" fill="none" stroke-width="6"/>
-                <g class="eyes">
-                  <ellipse cx="182" cy="216" rx="11" ry="9" fill="#ffffff"/>
-                  <ellipse cx="238" cy="216" rx="11" ry="9" fill="#ffffff"/>
-                  <g class="pupils" stroke="none" fill="#0d0d10"><circle cx="185" cy="217" r="5"/><circle cx="241" cy="217" r="5"/></g>
-                </g>
-              </g>
-              <!-- face: scandalised (aura lost) -->
-              <g class="f f-shock">
-                <path d="M164 186 Q180 172 198 184" fill="none" stroke-width="6"/>
-                <path d="M222 184 Q240 172 256 186" fill="none" stroke-width="6"/>
-                <ellipse cx="182" cy="214" rx="15" ry="17" fill="#ffffff"/><circle cx="182" cy="216" r="6" fill="#0d0d10" stroke="none"/>
-                <ellipse cx="238" cy="214" rx="15" ry="17" fill="#ffffff"/><circle cx="238" cy="216" r="6" fill="#0d0d10" stroke="none"/>
-              </g>
-              <!-- face: proud (aura gained) -->
-              <g class="f f-proud">
-                <path d="M166 194 Q182 188 198 194" fill="none" stroke-width="6"/>
-                <path d="M222 194 Q238 188 254 194" fill="none" stroke-width="6"/>
-                <path d="M170 220 Q182 206 194 220" fill="none" stroke-width="6"/>
-                <path d="M226 220 Q238 206 250 220" fill="none" stroke-width="6"/>
+              <use href="#s-head" fill="#f6c79a" stroke="none" transform="translate(2.5 2)"/>
+              <use href="#s-head"/>
+              <path d="M156 224 l6 -7 M162 227 l6 -7 M168 229 l6 -7 M228 229 l6 -7 M234 227 l6 -7 M240 224 l6 -7" stroke="#ff4fa3" stroke-width="2.5"/>
+              <g class="wig">
+                <use href="#s-fringe" fill="#efe9da" stroke="none" transform="translate(2.5 2)"/>
+                <use href="#s-fringe"/>
               </g>
 
-              <!-- mouths -->
-              <path class="m m-idle" d="M196 254 Q212 248 226 256" fill="none" stroke-width="5"/>
-              <ellipse class="m m-talk" cx="211" cy="256" rx="10" ry="9" fill="#5a1630"/>
-              <ellipse class="m m-shock" cx="210" cy="258" rx="12" ry="15" fill="#5a1630"/>
-              <path class="m m-smile" d="M190 248 Q210 272 230 248 Z" fill="#5a1630"/>
+              <path class="brow brow-l" d="M165 178 L192 181" stroke-width="6"/>
+              <path class="brow brow-r" d="M210 181 L238 177" stroke-width="6"/>
 
-              <!-- nervous sweat (long confessions) -->
-              <path class="sweat" d="M276 180 Q284 196 276 202 Q268 196 276 180 Z" fill="#7fd6ff"/>
+              <g class="eyes eyes-open">
+                <path d="M168 198 C168 188 192 188 192 199 C192 209 168 209 168 198 Z" fill="#ffffff" stroke-width="3.5"/>
+                <path d="M210 198 C210 186 236 187 236 199 C236 210 210 210 210 198 Z" fill="#ffffff" stroke-width="3.5"/>
+                <g class="pupils" stroke="none" fill="#0d0d10"><circle cx="180" cy="199" r="4.5"/><circle cx="223" cy="199" r="4.5"/></g>
+              </g>
+              <g class="eyes-happy">
+                <path d="M168 202 C174 190 188 190 192 202" stroke-width="5.5"/>
+                <path d="M210 202 C216 190 232 190 236 202" stroke-width="5.5"/>
+              </g>
+              <path d="M200 204 C196 214 194 222 204 222" stroke-width="3.5"/>
+
+              <path class="m m-idle" d="M186 239 C196 234 208 235 216 240"/>
+              <path class="m m-talk" d="M192 238 C192 230 210 230 210 239 C210 247 192 247 192 238 Z" fill="#5a1630"/>
+              <path class="m m-shock" d="M190 240 C190 226 213 226 213 241 C213 256 190 256 190 240 Z" fill="#5a1630"/>
+              <path class="m m-smile" d="M184 233 C192 252 212 252 220 233 Z" fill="#5a1630"/>
+
+              <path class="sweat" d="M266 150 C273 163 271 170 266 170 C260 170 259 163 266 150 Z" fill="#7fd6ff" stroke-width="3"/>
             </g>
           </g>
 
-          <!-- gavel raised (idle) -->
+          <!-- gavel raised -->
           <g class="arm arm-up">
-            <path d="M292 330 Q330 300 336 252" fill="none" stroke-width="16" stroke="#0d0d10"/>
-            <path d="M292 330 Q330 300 336 252" fill="none" stroke-width="8" stroke="#3a3a48"/>
-            <circle cx="337" cy="246" r="13" fill="#ffcf9e"/>
-            <rect x="331" y="190" width="12" height="62" rx="5" fill="#8a5a2b" transform="rotate(-18 337 246)"/>
-            <rect x="300" y="170" width="70" height="34" rx="9" fill="#a8693a" transform="rotate(-18 337 246)"/>
-            <path d="M314 172 L314 204 M356 172 L356 204" transform="rotate(-18 337 246)" fill="none" stroke-width="4"/>
+            <path d="M262 316 C292 306 306 284 308 258" stroke-width="21"/>
+            <path d="M262 316 C292 306 306 284 308 258" stroke-width="13" stroke="#4a4a54"/>
+            <path d="M304 252 L313 250 L327 196 L318 194 Z" fill="#8a5a2b"/>
+            <use href="#s-ghead" fill="#b87840" stroke="none" transform="translate(2 2)"/>
+            <use href="#s-ghead"/>
+            <path d="M308 168 l-4 23 M341 177 l-4 24" stroke-width="3"/>
+            <path d="M298 250 C298 238 320 238 320 251 C320 262 298 262 298 250 Z" fill="#f6c79a"/>
           </g>
-          <!-- gavel slammed (verdict) -->
+          <!-- gavel slammed -->
           <g class="arm arm-down">
-            <path d="M292 330 Q340 336 352 360" fill="none" stroke-width="16" stroke="#0d0d10"/>
-            <path d="M292 330 Q340 336 352 360" fill="none" stroke-width="8" stroke="#3a3a48"/>
-            <circle cx="354" cy="362" r="13" fill="#ffcf9e"/>
-            <rect x="348" y="300" width="12" height="62" rx="5" fill="#8a5a2b" transform="rotate(70 354 362)"/>
-            <rect x="372" y="330" width="34" height="62" rx="9" fill="#a8693a"/>
-            <path class="bang-lines" d="M362 340 L374 330 M362 384 L374 392 M410 350 L420 344" fill="none" stroke="#c6ff3d" stroke-width="5"/>
+            <path d="M262 316 C296 318 318 334 326 350" stroke-width="21"/>
+            <path d="M262 316 C296 318 318 334 326 350" stroke-width="13" stroke="#4a4a54"/>
+            <path d="M326 350 L329 361 L362 351 L360 340 Z" fill="#8a5a2b"/>
+            <path d="M358 324 C358 316 384 316 386 324 L388 364 C388 371 360 371 360 364 Z" fill="#b87840"/>
+            <path d="M360 332 l25 -1 M361 358 l26 -1" stroke-width="3"/>
+            <path d="M316 354 C316 342 338 342 338 355 C338 366 316 366 316 354 Z" fill="#f6c79a"/>
+            <path class="bang-lines" d="M394 322 l13 -9 M398 343 l15 0 M394 362 l13 8 M350 312 l-6 -13" stroke-width="5"/>
           </g>
 
-          <!-- bench -->
-          <rect x="34" y="368" width="352" height="22" rx="4" fill="#9a5a30"/>
-          <rect x="44" y="388" width="332" height="82" fill="#7a4424"/>
-          <path d="M100 400 L100 462 M210 400 L210 462 M320 400 L320 462" fill="none" stroke="#5c311a" stroke-width="5"/>
-          <rect x="110" y="404" width="200" height="38" rx="4" fill="#c6ff3d"/>
         </g>
-        <text x="210" y="431" text-anchor="middle" font-family="Permanent Marker, cursive" font-size="18" fill="#0d0d10">HON. JUDGE AURA</text>
+
+        <!-- bench: kept out of the wobble filter so the name plate stays readable -->
+        <g class="bench" stroke="#0d0d10" stroke-width="4.5" stroke-linejoin="round" stroke-linecap="round" fill="none">
+          <use href="#s-front" fill="#7a4424" stroke="none" transform="translate(2 2)"/>
+          <use href="#s-front"/>
+          <use href="#s-slab" fill="#a8693a" stroke="none" transform="translate(3 2)"/>
+          <use href="#s-slab"/>
+          <path d="M46 408 C56 405 66 411 76 407 M324 410 C336 406 346 413 358 408 M48 426 l26 -1 M328 427 l26 -1" stroke-width="2.5" stroke="#4d2a14"/>
+          <use href="#s-plate" fill="#c6ff3d" stroke-width="3.5"/>
+          <text x="200" y="424" text-anchor="middle" textLength="204" lengthAdjust="spacingAndGlyphs" font-family="Permanent Marker, cursive" font-size="22" fill="#0d0d10" stroke="none">HON. JUDGE AURA</text>
+        </g>
       </svg>
-    </section>
+    </div>
+
+    <!-- your aura: just the number -->
+    <div class="score" id="score">
+      <p class="label">your aura</p>
+      <p class="num" id="balance" aria-live="polite">0</p>
+      <p class="rank" id="standing">NPC</p>
+    </div>
 
     <!-- the confession desk -->
-    <section class="desk" id="desk" aria-label="Your account">
-      <p class="label">your aura</p>
-      <div class="score" aria-live="polite">
-        <p class="num" id="balance">0</p>
-        <span class="rank" id="standing">NPC</span>
-      </div>
-      <div class="meta"><span class="vibe" id="vibe"></span><span class="debuff" id="stamp" hidden>overdrawn</span></div>
+    <section class="desk" id="desk" aria-label="Confess">
       <div class="field">
         <label class="sr-only" for="entry">Type what you did, or paste a text you're scared to send</label>
-        <textarea id="entry" rows="2" maxlength="1000"></textarea>
-        <span class="counter" id="counter">0/1000</span>
+        <textarea id="entry" rows="2" maxlength="1000" placeholder="what did you do?"></textarea>
+        <span class="counter" id="counter" hidden></span>
       </div>
       <div class="chips">
         <span class="chips-label">try:</span>
@@ -134,11 +178,10 @@
         <button type="button" class="btn alt" data-mode="send">Should I send?</button>
         <button type="button" class="btn lock" id="larp-btn" disabled>LARP check <small id="larp-note">(Q3)</small></button>
       </div>
-      <p class="status" id="status" role="status"></p>
     </section>
 
     <!-- the verdict, delivered next to the judge -->
-    <section class="desk verdict" id="verdict" hidden aria-live="polite">
+    <section class="verdict" id="verdict" hidden aria-live="polite">
       <div class="v-bubble" id="v-bubble">
         <span class="who">the court finds&hellip;</span>
         <span id="cap-typed"></span><span class="caret" id="caret"></span>
@@ -166,6 +209,7 @@
       <h2 id="receipts-title">Receipts</h2>
       <button type="button" class="mini" id="close-receipts">close</button>
     </div>
+    <p class="standing-line"><b id="sheet-rank"></b> <span id="vibe"></span></p>
     <div class="table-wrap">
       <table>
         <thead><tr><th class="c-date">Date</th><th>Description</th><th class="num-col">Amount</th><th class="num-col">Balance</th></tr></thead>
