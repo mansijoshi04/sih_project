@@ -6,15 +6,17 @@
 
   const els = {
     acctNo: $("acct-no"), stmtDate: $("stmt-date"),
-    balance: $("balance"), standing: $("standing"), stamp: $("stamp"),
+    balance: $("balance"), standing: $("standing"), vibe: $("vibe"), stamp: $("stamp"),
     entry: $("entry"), counter: $("counter"), status: $("status"),
-    notice: $("notice"), noticeRef: $("notice-ref"), noticeTitle: $("notice-title"),
+    notice: $("notice"), noticeRef: $("notice-ref"), noticeStamp: $("notice-stamp"), noticeTitle: $("notice-title"),
     noticeAmount: $("notice-amount"), noticeRoast: $("notice-roast"),
-    noticeSend: $("notice-send"), noticeRec: $("notice-rec"), noticeRewrite: $("notice-rewrite"),
+    noticeSend: $("notice-send"), noticeRec: $("notice-rec"), noticeRewrite: $("notice-rewrite"), copyRewrite: $("copy-rewrite"),
     noticeQuest: $("notice-quest"), noticeQuestText: $("notice-quest-text"), noticeSrc: $("notice-src"),
     history: $("history"), empty: $("empty"), reset: $("reset"),
   };
-  const buttons = Array.from(document.querySelectorAll("button[data-mode]"));
+  const actionButtons = Array.from(document.querySelectorAll(".btn[data-mode]"));
+  const chips = Array.from(document.querySelectorAll(".chip"));
+  const tickerBals = Array.from(document.querySelectorAll(".tk-bal"));
 
   // ---------- storage (never trust it to exist) ----------
   function freshState() {
@@ -43,33 +45,68 @@
   const fmt = (n) => (n < 0 ? MINUS : "") + nf.format(Math.abs(Math.round(n)));
   const fmtSigned = (n) => (n > 0 ? "+" : n < 0 ? MINUS : "") + nf.format(Math.abs(n));
   const shortDate = (d) => d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" }).toUpperCase();
+  const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
-  function standing(b) {
-    if (b <= -10000) return "In Collections";
-    if (b <= -3000) return "Generational Cringe";
-    if (b < 0) return "Minor Fumble Era";
-    if (b < 3000) return "Mid";
-    if (b < 10000) return "Aura Farmer";
-    return "Him/Her";
-  }
+  const TIERS = [
+    { max: -10000, name: "In Collections", vibe: "they know where u live" },
+    { max: -3000, name: "Generational Cringe", vibe: "ur grandkids will feel this" },
+    { max: -1, name: "Minor Fumble Era", vibe: "recoverable. barely." },
+    { max: 2999, name: "Mid", vibe: "neither seen nor perceived" },
+    { max: 9999, name: "Aura Farmer", vibe: "lowkey ate" },
+    { max: Infinity, name: "Him/Her", vibe: "main character, certified" },
+  ];
+  const tier = (b) => TIERS.find((t) => b <= t.max);
 
+  const PLACEHOLDERS = [
+    "e.g. I said \"love you\" to my manager at the end of a Teams call.",
+    "e.g. I liked her post from 2019 at 3am. While deep-scrolling. On main.",
+    "e.g. paste the text you're about to send and let the bank decide.",
+    "e.g. I walked into a glass door at the open day. The door won.",
+  ];
+  const LOADING = [
+    "Auditor reviewing your account…",
+    "Consulting the group chat…",
+    "Checking the receipts…",
+    "Running a background vibe check…",
+    "Escalating to the council…",
+  ];
+
+  // ---------- render ----------
   function paintBalance(value) {
-    els.balance.textContent = `${fmt(value)} AURA`;
+    els.balance.innerHTML = "";
+    els.balance.append(fmt(value));
+    const unit = document.createElement("small");
+    unit.textContent = "AURA";
+    els.balance.append(unit);
     els.balance.classList.toggle("neg", value < 0);
     els.balance.classList.toggle("pos", value > 0);
   }
 
-  function renderStanding() {
+  function renderStanding(animate = false) {
     const b = state.balance;
-    els.standing.textContent = standing(b);
+    const t = tier(b);
+    els.standing.textContent = t.name;
+    els.standing.className = `sticker standing${b < 0 ? " neg" : b >= 3000 ? " pos" : ""}`;
+    els.vibe.textContent = t.vibe;
+    els.vibe.style.color = b >= 3000 ? "var(--green)" : b < 0 ? "var(--red)" : "var(--ink)";
+    tickerBals.forEach((el) => (el.textContent = fmt(b)));
+
+    const wasHidden = els.stamp.hidden;
     if (b < 0) {
-      els.stamp.hidden = false;
       const collections = b <= -10000;
+      els.stamp.hidden = false;
       els.stamp.textContent = collections ? "Sent to Collections" : "Overdrawn";
       els.stamp.classList.toggle("big", collections);
+      if (animate && (wasHidden || collections)) restartAnim(els.stamp, "pop");
     } else {
       els.stamp.hidden = true;
     }
+  }
+
+  function restartAnim(el, cls) {
+    el.classList.remove(cls);
+    void el.offsetWidth;
+    el.classList.add(cls);
   }
 
   let animId = 0;
@@ -83,8 +120,7 @@
     const t0 = performance.now();
     const step = (now) => {
       const p = Math.min(1, (now - t0) / dur);
-      const eased = 1 - Math.pow(1 - p, 3);
-      displayed = start + delta * eased;
+      displayed = start + delta * (1 - Math.pow(1 - p, 3));
       paintBalance(displayed);
       if (p < 1) animId = requestAnimationFrame(step);
       else displayed = target;
@@ -117,18 +153,29 @@
     const amt = r.aura_change;
     els.noticeRef.textContent = `Ref. ${String(state.history.length).padStart(4, "0")}`;
     els.noticeTitle.textContent = r.title;
-    els.noticeAmount.textContent = `${fmtSigned(amt)} AURA`;
+    els.noticeAmount.textContent = fmtSigned(amt);
+    const unit = document.createElement("small");
+    unit.textContent = "AURA";
+    els.noticeAmount.append(unit);
     els.noticeAmount.className = `amount mono ${amt < 0 ? "neg" : "pos"}`;
     els.noticeRoast.textContent = r.roast;
 
+    let stampText;
     if (mode === "send" && r.send_verdict) {
+      const ok = r.send_verdict === "SEND";
+      stampText = ok ? "Approved" : "Declined";
       els.noticeSend.hidden = false;
-      els.noticeRec.textContent = `RECOMMENDATION: ${r.send_verdict}`;
-      els.noticeRec.className = `rec mono ${r.send_verdict === "SEND" ? "pos" : "neg"}`;
+      els.noticeRec.textContent = `Recommendation: ${r.send_verdict}`;
+      els.noticeRec.className = `rec ${ok ? "pos" : "neg"}`;
       els.noticeRewrite.textContent = r.rewrite || "(no rewrite on file)";
+      els.copyRewrite.hidden = !r.rewrite;
+      els.copyRewrite.textContent = "copy";
     } else {
+      stampText = amt < 0 ? "Debited" : "Credited";
       els.noticeSend.hidden = true;
     }
+    els.noticeStamp.textContent = stampText;
+    els.noticeStamp.classList.toggle("ok", stampText === "Approved" || stampText === "Credited");
 
     if (amt < 0 && r.side_quest) {
       els.noticeQuest.hidden = false;
@@ -138,14 +185,25 @@
     }
     els.noticeSrc.textContent = r.source === "mock" ? "[branch backup ledger]" : "";
     els.notice.hidden = false;
+    restartAnim(els.notice, "enter");
+    restartAnim(els.noticeStamp, "pop");
   }
 
   // ---------- actions ----------
+  let loadingTimer = 0;
   function setBusy(busy) {
-    buttons.forEach((b) => (b.disabled = busy));
+    actionButtons.forEach((b) => (b.disabled = busy));
+    chips.forEach((c) => (c.disabled = busy));
     els.entry.readOnly = busy;
-    els.status.className = busy ? "status loading" : "status";
-    els.status.textContent = busy ? "Auditor reviewing your account…" : "";
+    clearInterval(loadingTimer);
+    els.status.className = "status";
+    if (busy) {
+      let i = 0;
+      els.status.textContent = LOADING[0];
+      loadingTimer = setInterval(() => { i = (i + 1) % LOADING.length; els.status.textContent = LOADING[i]; }, 1400);
+    } else {
+      els.status.textContent = "";
+    }
   }
 
   async function submit(mode) {
@@ -175,10 +233,11 @@
       setBusy(false);
       renderNotice({ ...data, aura_change: amount }, mode);
       renderHistory();
-      renderStanding();
+      renderStanding(true);
       animateTo(state.balance);
       els.entry.value = "";
       updateCounter();
+      els.notice.scrollIntoView({ behavior: "smooth", block: "nearest" });
     } catch (err) {
       setBusy(false);
       els.status.className = "status err";
@@ -187,13 +246,30 @@
   }
 
   function updateCounter() {
-    els.counter.textContent = `${els.entry.value.length} / 1000`;
+    const len = els.entry.value.length;
+    els.counter.textContent = `${len} / 1000`;
+    els.counter.classList.toggle("warn", len > 900);
   }
 
-  buttons.forEach((b) => b.addEventListener("click", () => submit(b.dataset.mode)));
+  actionButtons.forEach((b) => b.addEventListener("click", () => submit(b.dataset.mode)));
+  chips.forEach((c) => c.addEventListener("click", () => {
+    els.entry.value = c.dataset.text;
+    updateCounter();
+    els.entry.focus();
+    els.status.className = "status";
+    els.status.textContent = c.dataset.mode === "send" ? "Loaded. Hit SHOULD I SEND?" : "Loaded. Hit CONFESS.";
+  }));
   els.entry.addEventListener("input", updateCounter);
   els.entry.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) submit("confess");
+  });
+  els.copyRewrite.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(els.noticeRewrite.textContent);
+      els.copyRewrite.textContent = "copied";
+    } catch {
+      els.copyRewrite.textContent = "copy failed, select it manually";
+    }
   });
   els.reset.addEventListener("click", () => {
     if (!confirm("Close this account? All aura history will be shredded.")) return;
@@ -209,6 +285,7 @@
   // ---------- init ----------
   els.acctNo.textContent = state.account;
   els.stmtDate.textContent = shortDate(new Date());
+  els.entry.placeholder = pick(PLACEHOLDERS);
   save();
   paintBalance(state.balance);
   renderStanding();

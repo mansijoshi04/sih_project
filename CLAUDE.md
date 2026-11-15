@@ -22,8 +22,11 @@ Without `ANTHROPIC_API_KEY` the app runs in mock mode (`/api/health` reports `mo
 - Tone: roast the situation, never identity. Serious/self-harm input → 0 aura and a kind note.
 
 ## Design constraints (don't regress)
-Old paper bank statement look: paper `#f4f1ea`, ink `#1a1a1a`, red `#a4161a` (negative), muted green (positive). Libre Caslon Text for headings, IBM Plex Mono for numbers. Ruled lines, dotted leaders, right-aligned mono amounts, CSS-only rotated "OVERDRAWN" / "SENT TO COLLECTIONS" stamp.
-Avoid: gradients (except textarea ruled lines), glassmorphism, blur, glow, shadows, purple/indigo, emoji, pill buttons, Inter, hero+cards layouts, icon sets. Must work at phone width.
+Concept: an old paper bank statement that Gen Z vandalised. Paper `#f4f1ea`, ink `#1a1a1a`, red `#a4161a` (negative), green `#2f5d3a` (positive), one loud accent: highlighter `#dcf23a` (marker swipes, stickers, focus rings).
+Fonts: Archivo Black (display/buttons/stickers), IBM Plex Mono (all numbers, labels, tables), Libre Caslon Text (official/body voice, italics), Permanent Marker (red margin scribbles only).
+Signature bits: black stock ticker band, highlighter swipe on "BANK", rotated sticker labels, chunky square buttons with thick bottom border, CSS-only rotated stamps (OVERDRAWN / SENT TO COLLECTIONS, APPROVED / DECLINED / DEBITED / CREDITED), example "need inspo?" chips.
+Avoid: gradients (except textarea ruled lines), glassmorphism, blur, glow, drop shadows, purple/indigo, emoji, pill buttons, Inter, hero+cards layouts, icon sets. Must work at 390px width; respect prefers-reduced-motion.
+Visual check: headless Edge can't go below 504px wide, so render mobile inside a 390px iframe.
 
 ## Deployment
 Target is **Vercel** (Python runtime, zero-config FastAPI: Vercel detects `app` in `main.py`). Set `ANTHROPIC_API_KEY` in the Vercel project's environment variables. Keep paths relative to `Path(__file__).parent`, keep the app stateless (serverless), and don't write to disk at runtime.
