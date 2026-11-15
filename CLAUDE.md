@@ -22,10 +22,11 @@ Without `ANTHROPIC_API_KEY` the app runs in mock mode (`/api/health` reports `mo
 - Tone: roast the situation, never identity. Serious/self-harm input → 0 aura and a kind note.
 
 ## Design constraints (don't regress)
-Concept: an old paper bank statement that Gen Z vandalised. Paper `#f4f1ea`, ink `#1a1a1a`, red `#a4161a` (negative), green `#2f5d3a` (positive), one loud accent: highlighter `#dcf23a` (marker swipes, stickers, focus rings).
-Fonts: Archivo Black (display/buttons/stickers), IBM Plex Mono (all numbers, labels, tables), Libre Caslon Text (official/body voice, italics), Permanent Marker (red margin scribbles only).
-Signature bits: black stock ticker band, highlighter swipe on "BANK", rotated sticker labels, chunky square buttons with thick bottom border, CSS-only rotated stamps (OVERDRAWN / SENT TO COLLECTIONS, APPROVED / DECLINED / DEBITED / CREDITED), example "need inspo?" chips.
-Avoid: gradients (except textarea ruled lines), glassmorphism, blur, glow, drop shadows, purple/indigo, emoji, pill buttons, Inter, hero+cards layouts, icon sets. Must work at 390px width; respect prefers-reduced-motion.
+Concept: an ATM / thermal-printer receipt on a desk. NOT neobrutalism (user rejected chunky borders, stickers, highlighter blocks, thick-bottom buttons).
+Narrow receipt (max 460px) on `--desk #d8d3c8`, paper `#fbfaf5`, ink `#26241f`, red `#a4161a` for negatives (two-colour thermal print), green `#3f6b4a` for positives. Torn zig-zag top/bottom edges, dashed section rules, dotted leaders.
+Fonts: IBM Plex Mono (body), DotGothic16 (big balance + amounts, dot-matrix), Libre Caslon Text (logo, notice title, roast).
+Must keep: the "IMPORTANT: Aura balances are not legal tender and cannot be exchanged for rizz." box at the very top (user loves it). Thin rotated rubber stamps (OVERDRAWN / SENT TO COLLECTIONS, APPROVED / DECLINED / DEBITED / CREDITED). Notice "prints" in with a stepped clip-path reveal. Barcode + "please touch grass" footer.
+Avoid: gradients (hard-stop zig-zag triangles are fine), glassmorphism, blur, glow, drop shadows, purple/indigo, emoji, pill buttons, Inter, hero+cards layouts, icon sets. Must work at 390px; respect prefers-reduced-motion.
 Visual check: headless Edge can't go below 504px wide, so render mobile inside a 390px iframe.
 
 ## Deployment

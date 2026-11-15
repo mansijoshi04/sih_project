@@ -7,131 +7,105 @@
   <meta name="description" content="Aura Debt: confess your cringe, get audited.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Mono:wght@400;600&family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&family=Permanent+Marker&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=IBM+Plex+Mono:ital,wght@0,400;0,600;1,400&family=Libre+Caslon+Text:ital,wght@0,700;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-  <div class="ticker" aria-hidden="true">
-    <div class="ticker-track">
-      <span class="ticker-set">
-        <b>YOUR ACCT <i class="tk-bal">0</i></b>
-        <span>ARB AURA INDEX <em class="dn">&#9660; 4.20%</em></span>
-        <span>FUMBLE FUTURES <em class="up">&#9650; 69%</em></span>
-        <span>DELULU RATE: RECORD HIGH</span>
-        <span>RIZZ RESERVES: CRITICALLY LOW</span>
-        <span>SITUATIONSHIP BONDS DOWNGRADED TO JUNK</span>
-        <span>TODAY&rsquo;S TIP: DO NOT DOUBLE TEXT</span>
-      </span>
-      <span class="ticker-set">
-        <b>YOUR ACCT <i class="tk-bal">0</i></b>
-        <span>ARB AURA INDEX <em class="dn">&#9660; 4.20%</em></span>
-        <span>FUMBLE FUTURES <em class="up">&#9650; 69%</em></span>
-        <span>DELULU RATE: RECORD HIGH</span>
-        <span>RIZZ RESERVES: CRITICALLY LOW</span>
-        <span>SITUATIONSHIP BONDS DOWNGRADED TO JUNK</span>
-        <span>TODAY&rsquo;S TIP: DO NOT DOUBLE TEXT</span>
-      </span>
-    </div>
-  </div>
+  <main class="receipt">
 
-  <main class="sheet">
+    <p class="legal">
+      <span class="legal-tag">Important</span>
+      Aura balances are not legal tender and cannot be exchanged for rizz.
+    </p>
 
-    <header class="letterhead">
-      <div class="lh-row">
-        <p class="doc-type">Statement of Account</p>
-        <span class="sticker sticker-est">est. 2026 &middot; no cap</span>
-      </div>
-      <h1 class="bank-name">Aura<br>Reserve<br><span class="hl">Bank</span></h1>
-      <p class="bank-sub">Member, Federal Vibe Insurance Corp. Your aura is not insured.</p>
-      <dl class="acct-meta">
-        <div><dt>Account No.</dt><dd class="mono" id="acct-no">——</dd></div>
-        <div><dt>Statement Date</dt><dd class="mono" id="stmt-date">——</dd></div>
-        <div><dt>Account Type</dt><dd>Personal Aura (Checking)</dd></div>
+    <header class="head">
+      <h1 class="logo">Aura Reserve Bank</h1>
+      <p class="branch">Branch 069 &middot; Main Character Ave</p>
+      <p class="slip-type">*** Statement of Account ***</p>
+      <dl class="meta">
+        <div><dt>Date</dt><dd id="stmt-date">——</dd></div>
+        <div><dt>Acct</dt><dd id="acct-no">——</dd></div>
+        <div><dt>Type</dt><dd>Personal Aura (Chq)</dd></div>
+        <div><dt>Terminal</dt><dd>ATM-0420</dd></div>
       </dl>
     </header>
 
     <section class="balance-block" aria-live="polite">
-      <p class="kicker">Closing balance</p>
-      <p class="balance mono" id="balance">0 <small>AURA</small></p>
-      <div class="standing-row">
-        <span class="kicker">Standing</span>
-        <span class="sticker standing" id="standing">Mid</span>
-        <span class="scribble" id="vibe">neither seen nor perceived</span>
-      </div>
+      <p class="label">Available aura</p>
+      <p class="balance" id="balance">0</p>
+      <p class="line"><span>Standing</span><span class="dots"></span><span class="standing" id="standing">Mid</span></p>
+      <p class="vibe" id="vibe">* neither seen nor perceived *</p>
       <div class="stamp" id="stamp" hidden>Overdrawn</div>
     </section>
 
     <section class="slip" aria-labelledby="slip-title">
-      <div class="slip-head">
-        <h2 id="slip-title">Spill it.</h2>
-        <span class="form-no mono">FORM ARB-69 &middot; DEPOSIT / WITHDRAWAL OF AURA</span>
-      </div>
+      <h2 class="section-title" id="slip-title">New transaction</h2>
       <label class="field-label" for="entry">
-        Confess the incident, or paste the text you&rsquo;re about to send (add context, the auditor is nosy).
+        Confess the incident, or paste the text you&rsquo;re about to send. Add context, the auditor is nosy.
       </label>
       <textarea id="entry" maxlength="1000" rows="5"></textarea>
+      <div class="under-field">
+        <span id="counter">0 / 1000</span>
+      </div>
       <div class="examples">
-        <span class="ex-label mono">need inspo?</span>
-        <button type="button" class="chip" data-mode="confess" data-text="I said &quot;you too&quot; when the waiter told me to enjoy my meal.">waiter incident</button>
+        <span class="ex-label">Try:</span>
+        <button type="button" class="chip" data-mode="confess" data-text="I said &quot;you too&quot; when the waiter told me to enjoy my meal.">the waiter</button>
         <button type="button" class="chip" data-mode="confess" data-text="I waved back at someone who was waving at the person behind me. Then I pretended to fix my hair.">the wave</button>
         <button type="button" class="chip" data-mode="send" data-text="Context: we went on one date 3 weeks ago and she left me on delivered. Message: &quot;hey so i was just wondering if u ever got my last message lol&quot;">the follow-up</button>
         <button type="button" class="chip" data-mode="send" data-text="Context: group project, nobody has done anything and it's due tomorrow. Message: &quot;ok i'm doing the slides tonight, send me your bits by 9 or i'm writing them myself&quot;">group chat</button>
       </div>
-      <div class="slip-foot">
-        <span class="mono counter" id="counter">0 / 1000</span>
-        <div class="actions">
-          <button type="button" class="btn btn-primary" data-mode="confess">Confess</button>
-          <button type="button" class="btn" data-mode="send">Should I send?</button>
-          <span class="btn-wrap">
-            <button type="button" class="btn" disabled>LARP check</button>
-            <small class="unavail">service available Q3</small>
-          </span>
-        </div>
+      <div class="actions">
+        <button type="button" class="btn btn-primary" data-mode="confess">Confess</button>
+        <button type="button" class="btn" data-mode="send">Should I send?</button>
+        <span class="btn-wrap">
+          <button type="button" class="btn" disabled>LARP check</button>
+          <small class="unavail">Service available Q3</small>
+        </span>
       </div>
       <p class="status" id="status" role="status"></p>
     </section>
 
     <section class="notice" id="notice" hidden aria-live="polite">
+      <p class="tear" aria-hidden="true">tear here</p>
       <div class="notice-head">
-        <span>Auditor&rsquo;s Notice</span>
-        <span class="mono" id="notice-ref"></span>
+        <span>Auditor&rsquo;s notice</span>
+        <span id="notice-ref"></span>
       </div>
       <div class="stamp notice-stamp" id="notice-stamp"></div>
-      <p class="notice-to">Re: your recent activity</p>
       <h3 class="notice-title" id="notice-title"></h3>
-      <p class="amount mono" id="notice-amount"></p>
-      <p class="roast"><span class="hl-text" id="notice-roast"></span></p>
+      <p class="amount" id="notice-amount"></p>
+      <p class="roast" id="notice-roast"></p>
       <div id="notice-send" hidden>
         <p class="rec" id="notice-rec"></p>
         <div class="rewrite-head">
-          <p class="sub-label">Higher-aura rewrite on file</p>
+          <p class="sub-label">Higher-aura rewrite</p>
           <button type="button" class="linkish" id="copy-rewrite">copy</button>
         </div>
         <blockquote class="rewrite" id="notice-rewrite"></blockquote>
       </div>
       <div id="notice-quest" hidden>
-        <p class="sub-label">Repayment plan <span class="scribble small">side quest unlocked</span></p>
+        <p class="sub-label">Repayment plan</p>
         <p class="quest" id="notice-quest-text"></p>
       </div>
-      <p class="sig">&mdash; Office of the Senior Aura Auditor <span class="mono mock-flag" id="notice-src"></span></p>
+      <p class="sig">&mdash; Office of the Senior Aura Auditor <span class="mock-flag" id="notice-src"></span></p>
     </section>
 
     <section class="history" aria-labelledby="hist-title">
-      <div class="hist-head">
-        <h2 id="hist-title">The Receipts</h2>
-        <button type="button" class="linkish" id="reset">close account</button>
-      </div>
+      <h2 class="section-title" id="hist-title">Transactions</h2>
       <table>
         <thead>
-          <tr><th class="c-date">Date</th><th>Description</th><th class="num">Amount</th><th class="num">Balance</th></tr>
+          <tr><th class="c-date">Date</th><th>Description</th><th class="num">Amt</th><th class="num">Bal</th></tr>
         </thead>
         <tbody id="history"></tbody>
       </table>
-      <p class="empty" id="empty">No transactions this period. Suspiciously quiet. <span class="scribble small">we see u lurking</span></p>
+      <p class="empty" id="empty">No transactions this period. Suspiciously quiet.</p>
     </section>
 
-    <footer class="fine">
-      Aura balances are not legal tender and cannot be exchanged for rizz. The Aura Reserve Bank is a parody. Please audit responsibly.
+    <footer class="foot">
+      <div class="barcode" id="barcode" aria-hidden="true"></div>
+      <p class="thanks">Thank you for banking with us.<br>Please touch grass.</p>
+      <p class="fine">The Aura Reserve Bank is a parody. Not insured by the Federal Vibe Insurance Corp.</p>
+      <button type="button" class="linkish" id="reset">Close account</button>
     </footer>
   </main>
   <script src="/static/app.js"></script>

@@ -16,7 +16,6 @@
   };
   const actionButtons = Array.from(document.querySelectorAll(".btn[data-mode]"));
   const chips = Array.from(document.querySelectorAll(".chip"));
-  const tickerBals = Array.from(document.querySelectorAll(".tk-bal"));
 
   // ---------- storage (never trust it to exist) ----------
   function freshState() {
@@ -86,10 +85,8 @@
     const b = state.balance;
     const t = tier(b);
     els.standing.textContent = t.name;
-    els.standing.className = `sticker standing${b < 0 ? " neg" : b >= 3000 ? " pos" : ""}`;
-    els.vibe.textContent = t.vibe;
-    els.vibe.style.color = b >= 3000 ? "var(--green)" : b < 0 ? "var(--red)" : "var(--ink)";
-    tickerBals.forEach((el) => (el.textContent = fmt(b)));
+    els.standing.className = `standing${b < 0 ? " neg" : b >= 3000 ? " pos" : ""}`;
+    els.vibe.textContent = `* ${t.vibe} *`;
 
     const wasHidden = els.stamp.hidden;
     if (b < 0) {
@@ -136,8 +133,8 @@
       const cells = [
         ["c-date", shortDate(new Date(tx.ts))],
         ["", tx.summary],
-        [`mono ${tx.amount < 0 ? "neg" : "pos"}`, fmtSigned(tx.amount)],
-        [`mono ${tx.balance < 0 ? "neg" : ""}`, fmt(tx.balance)],
+        [`amt ${tx.amount < 0 ? "neg" : "pos"}`, fmtSigned(tx.amount)],
+        [`amt ${tx.balance < 0 ? "neg" : ""}`, fmt(tx.balance)],
       ];
       for (const [cls, text] of cells) {
         const td = document.createElement("td");
@@ -157,7 +154,7 @@
     const unit = document.createElement("small");
     unit.textContent = "AURA";
     els.noticeAmount.append(unit);
-    els.noticeAmount.className = `amount mono ${amt < 0 ? "neg" : "pos"}`;
+    els.noticeAmount.className = `amount ${amt < 0 ? "neg" : "pos"}`;
     els.noticeRoast.textContent = r.roast;
 
     let stampText;
@@ -196,7 +193,7 @@
     chips.forEach((c) => (c.disabled = busy));
     els.entry.readOnly = busy;
     clearInterval(loadingTimer);
-    els.status.className = "status";
+    els.status.className = busy ? "status busy" : "status";
     if (busy) {
       let i = 0;
       els.status.textContent = LOADING[0];
@@ -276,15 +273,33 @@
     state = freshState();
     save();
     els.notice.hidden = true;
-    els.acctNo.textContent = state.account;
+    els.acctNo.textContent = state.account.replace(/^ARB-\d{4}-\d{4}/, "****-****");
+    drawBarcode();
     renderHistory();
     renderStanding();
     animateTo(0);
   });
 
+  function drawBarcode() {
+    const bc = document.getElementById("barcode");
+    if (!bc) return;
+    let seed = 0;
+    for (const ch of state.account) seed = (seed * 31 + ch.charCodeAt(0)) >>> 0;
+    const rand = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+    bc.replaceChildren();
+    for (let i = 0; i < 46; i++) {
+      const bar = document.createElement("span");
+      bar.style.width = `${1 + Math.floor(rand() * 3)}px`;
+      bar.style.marginRight = `${1 + Math.floor(rand() * 3)}px`;
+      bc.appendChild(bar);
+    }
+  }
+
   // ---------- init ----------
-  els.acctNo.textContent = state.account;
-  els.stmtDate.textContent = shortDate(new Date());
+  els.acctNo.textContent = state.account.replace(/^ARB-\d{4}-\d{4}/, "****-****");
+  const now = new Date();
+  els.stmtDate.textContent = `${shortDate(now)} ${now.toTimeString().slice(0, 5)}`;
+  drawBarcode();
   els.entry.placeholder = pick(PLACEHOLDERS);
   save();
   paintBalance(state.balance);
