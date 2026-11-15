@@ -23,16 +23,16 @@ Without `ANTHROPIC_API_KEY` the app runs in mock mode (`/api/health` reports `mo
 - Tone: roast the situation, never identity. Serious/self-harm input → 0 aura and a kind note.
 
 ## Design (chosen by the user, don't regress)
-Original chunky game-menu look (user picked "Game menu / Roblox-y" after rejecting 6 other directions as busy or "AI-looking"). Not a copy of any real game.
-- Sky-blue baseplate background with subtle studs, white panels with thick navy outline and a thicker bottom edge for depth (no shadows, no gradients), tab labels on panels. Fonts: Lilita One (titles/buttons/numbers, white fill with navy stroke) + Nunito.
-- HUD: gold coin + giant aura number (red when negative, green when positive), rank badge coloured by `body[data-tier]`, XP bar to the next rank, "Debuff: Overdrawn / Sent to collections".
-- Rizz line is a big gold "Server notice" banner at the top (user loves it).
-- "New quest: Confess your fumble" panel: clear instructions, pulsing textarea, quick-pick chips, 3D buttons: Confess (green), Should I send? (blue), LARP check (locked grey until `LARP_API_URL` is set, then gold).
-- Verdict overlay: the auditor's NPC dialogue box types letter by letter (tap finishes, readable speed), then the stroked title pops and the amount slams (user likes this), then reward cards (recommendation, rewrite, "Side quest unlocked (repayment plan)"), then CONTINUE.
+"Aura meter + typewriter verdict", Gen Alpha and whimsical. One screen, one thing: giant aura number centred, tier as a dark tilted tag, white composer card at the bottom. Nothing busy.
+- Page background follows standing via `body[data-tier]`, soft candy colours (NO red background, user rejected it): chopped `#ffbf69` tangerine, crashout `#ffc6de` strawberry milk, fumble `#fff28a` lemon, npc `#ade6ff` sky, farmer `#c6f5a3` pistachio, sigma `#9ff0dd` mint. Ink `#1b1530`, white surfaces. Font: Fredoka. No sparkles (user said they look AI).
+- Rizz line "Aura balances are not legal tender and cannot be exchanged for rizz." is a big white tilted banner at the top (user loves it, wanted it bigger).
+- Composer must make the call to action obvious: numbered steps ("1 Type what you did", "2 Get audited"), a pulsing dashed textarea while empty, "type here..." placeholder, example chips.
+- Verdict: full-screen card in the new tier colour; the roast TYPES OUT letter by letter (readable speed, pauses on punctuation; user said word-chunks were too fast), white text with thick ink stroke, slang words in yellow. Then title pops + amount slams (user likes this "fully chopped" moment). Tap 1 finishes typing, tap 2 continues; auto-continues after 6s. Then the number shakes/bounces and the verdict sheet slides up ("bet" closes it).
+- History lives in a "receipts" bottom sheet (Date | Description | Amount | Balance) with "Close account".
 - Sound effects via Web Audio (no files): typing ticks, button pops, slam + sad trombone on losses, level-up jingle on gains, error buzz; "sound on/off" toggle stored in localStorage.
-- History is the "Quest log" modal (Date | Description | Amount | Balance) with "Close account (reset)".
-- Avoid AI tells: sparkle/✦ icons, pastel rounded cards, generic friendly fonts, gradients, glow, glassmorphism, purple/indigo, emoji. Must work at 390px.
-- Visual check: headless Edge can't go below 504px wide (use a 390px iframe on the same origin) and freezes CSS entrance animations under virtual time, so disable them when screenshotting end states.
+- Rejected: game-menu/Roblox-y UI ("looks shit", reverted 2026-11-15), neobrutalism, receipt/ATM slip, Wrapped/chat/tabloid/terminal (all "too busy"), red backgrounds, fast word-chunk captions.
+- Avoid: gradients, glassmorphism, blur, glow, drop shadows, purple/indigo, emoji, full pill buttons, Inter, icon sets. Must work at 390px; reduced motion skips the verdict animation.
+- Visual check: headless Edge can't go below 504px wide (use a 390px iframe on the same origin), and it freezes CSS entrance animations under virtual time, so disable them when screenshotting end states.
 
 ## LARP check (teammate's API)
 - `POST /api/larp` proxies to `{LARP_API_URL}/api/analyze` with stdlib `urllib` (the installed anthropic SDK doesn't ship `httpx`). Its response shape is undocumented, so `map_larp_verdict()` accepts several field names; per-user `aura.balance` gets clamped to -10000.

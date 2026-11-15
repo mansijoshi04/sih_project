@@ -7,104 +7,98 @@
   <meta name="description" content="Aura Debt: confess your cringe, get audited.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400..700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body data-tier="npc">
 
-  <header class="topbar">
-    <p class="logo">Aura Reserve Bank</p>
-    <div class="top-btns">
-      <button type="button" class="pill-btn" id="sound-toggle" aria-pressed="true">sound on</button>
-      <button type="button" class="pill-btn" id="open-receipts" aria-haspopup="dialog">quest log <span class="count" id="tx-count"></span></button>
+  <header class="top">
+    <span class="brand">Aura Reserve Bank</span>
+    <div class="top-actions">
+      <button type="button" class="ghost" id="sound-toggle" aria-pressed="true">sound on</button>
+      <button type="button" class="ghost" id="open-receipts" aria-haspopup="dialog">receipts <span class="count" id="tx-count"></span></button>
     </div>
   </header>
 
-  <p class="notice-banner"><span class="nb-tag">Server notice</span> Aura balances are not legal tender and cannot be exchanged for rizz.</p>
+  <p class="legal">Aura balances are not legal tender and cannot be exchanged for rizz.</p>
 
-  <main class="board">
-    <!-- player stats -->
-    <section class="panel stats" aria-live="polite">
-      <p class="panel-tab">Player stats</p>
-      <div class="coin-row">
-        <span class="coin" aria-hidden="true">A</span>
-        <p class="balance" id="balance">0</p>
-      </div>
-      <p class="aura-word">aura</p>
-      <div class="rank-row">
-        <span class="rank-label">Rank</span>
-        <span class="rank" id="standing">NPC</span>
-      </div>
-      <div class="xp" role="progressbar" aria-label="Progress to next rank" id="xp" aria-valuemin="0" aria-valuemax="100">
-        <div class="xp-fill" id="xp-fill"></div>
-      </div>
-      <p class="xp-label" id="xp-label"></p>
+  <main class="stage">
+    <section class="meter" aria-live="polite">
+      <p class="meter-label">your aura</p>
+      <p class="balance" id="balance">0</p>
+      <p class="tier" id="standing">NPC</p>
       <p class="vibe" id="vibe"></p>
-      <p class="debuff" id="stamp" hidden>Overdrawn</p>
+      <span class="stamp" id="stamp" hidden>Overdrawn</span>
     </section>
 
-    <!-- the quest: type here -->
-    <section class="panel quest" aria-labelledby="quest-title">
-      <p class="panel-tab tab-green">New quest</p>
-      <h1 class="quest-title" id="quest-title">Confess your fumble</h1>
-      <label class="quest-help" for="entry">Type what you did below, or paste a text you&rsquo;re scared to send (or a LinkedIn/X post to LARP-check). The auditor decides your aura.</label>
+    <section class="composer" aria-label="New transaction">
+      <div class="step-row">
+        <span class="step">1</span>
+        <label for="entry"><b>Type what you did</b> <span>or paste a text you&rsquo;re scared to send</span></label>
+      </div>
       <div class="field">
-        <textarea id="entry" rows="3" maxlength="1000" placeholder="type here..."></textarea>
+        <textarea id="entry" rows="2" maxlength="1000" placeholder="type here..."></textarea>
         <span class="counter" id="counter">0/1000</span>
       </div>
       <div class="chips">
-        <span class="chips-label">quick pick:</span>
+        <span class="chips-label">no ideas? tap one:</span>
         <button type="button" class="chip" data-mode="confess" data-text="I said &quot;you too&quot; when the waiter told me to enjoy my meal.">the waiter</button>
         <button type="button" class="chip" data-mode="confess" data-text="I waved back at someone who was waving at the person behind me. Then I pretended to fix my hair.">the wave</button>
         <button type="button" class="chip" data-mode="send" data-text="Context: we went on one date 3 weeks ago and she left me on delivered. Message: &quot;hey so i was just wondering if u ever got my last message lol&quot;">the follow-up</button>
       </div>
+      <div class="step-row">
+        <span class="step">2</span>
+        <span><b>Get audited</b></span>
+      </div>
       <div class="actions">
-        <button type="button" class="gbtn green" data-mode="confess">Confess</button>
-        <button type="button" class="gbtn blue" data-mode="send">Should I send?</button>
-        <button type="button" class="gbtn grey locked" id="larp-btn" disabled>LARP check <small id="larp-note">Service available Q3</small></button>
+        <button type="button" class="btn btn-primary" data-mode="confess">Confess</button>
+        <button type="button" class="btn" data-mode="send">Should I send?</button>
+        <span class="larp">
+          <button type="button" class="btn" id="larp-btn" disabled>LARP check</button>
+          <small id="larp-note">Service available Q3</small>
+        </span>
       </div>
       <p class="status" id="status" role="status"></p>
     </section>
   </main>
 
-  <!-- verdict: NPC dialogue, then result screen -->
-  <div class="overlay" id="captions" hidden role="dialog" aria-modal="true" aria-labelledby="cap-title">
-    <div class="result-wrap">
-      <div class="dialogue">
-        <p class="nameplate">The Auditor</p>
-        <p class="dialogue-text"><span id="cap-typed"></span><span class="caret" id="caret"></span></p>
-      </div>
-
-      <div class="result" id="cap-result" hidden>
-        <p class="result-title" id="cap-title"></p>
-        <p class="result-amount" id="cap-amount"></p>
-        <p class="result-ref" id="notice-ref"></p>
-
-        <div class="reward" id="notice-send" hidden>
-          <p class="rec" id="notice-rec"></p>
-          <div class="sub-row">
-            <p class="sub">Higher-aura rewrite</p>
-            <button type="button" class="tiny" id="copy-rewrite">copy</button>
-          </div>
-          <blockquote class="rewrite" id="notice-rewrite"></blockquote>
-        </div>
-        <div class="reward" id="notice-quest" hidden>
-          <p class="sub">Side quest unlocked <span>(repayment plan)</span></p>
-          <p class="quest-text" id="notice-quest-text"></p>
-        </div>
-        <p class="src" id="notice-src"></p>
-      </div>
-
-      <button type="button" class="gbtn green next" id="cap-next">skip</button>
+  <!-- the verdict types out here, full screen -->
+  <div class="captions" id="captions" hidden>
+    <p class="cap-kicker">the auditor says</p>
+    <p class="cap-line"><span id="cap-typed"></span><span class="caret" id="caret"></span></p>
+    <div class="cap-result" id="cap-result" hidden>
+      <p class="cap-title" id="cap-title"></p>
+      <p class="cap-amount" id="cap-amount"></p>
     </div>
+    <button type="button" class="cap-next" id="cap-next">tap to skip</button>
   </div>
 
-  <!-- quest log -->
+  <!-- then lands here -->
   <div class="scrim" id="scrim" hidden></div>
-  <section class="panel log" id="receipts" hidden role="dialog" aria-modal="true" aria-labelledby="receipts-title">
-    <p class="panel-tab">Quest log</p>
-    <div class="log-head">
-      <h2 id="receipts-title">Transaction history</h2>
+  <section class="sheet" id="notice" hidden role="dialog" aria-modal="true" aria-labelledby="notice-title">
+    <p class="kicker">Auditor&rsquo;s notice <span id="notice-ref"></span></p>
+    <h2 class="notice-title" id="notice-title"></h2>
+    <p class="amount" id="notice-amount"></p>
+    <p class="roast" id="notice-roast"></p>
+    <div class="block" id="notice-send" hidden>
+      <p class="rec" id="notice-rec"></p>
+      <div class="sub-row">
+        <p class="sub">Higher-aura rewrite</p>
+        <button type="button" class="tiny" id="copy-rewrite">copy</button>
+      </div>
+      <blockquote class="rewrite" id="notice-rewrite"></blockquote>
+    </div>
+    <div class="block" id="notice-quest" hidden>
+      <p class="sub">Repayment plan &middot; side quest</p>
+      <p class="quest" id="notice-quest-text"></p>
+    </div>
+    <p class="src" id="notice-src"></p>
+    <button type="button" class="btn btn-primary wide" id="close-notice">bet</button>
+  </section>
+
+  <section class="sheet drawer" id="receipts" hidden role="dialog" aria-modal="true" aria-labelledby="receipts-title">
+    <div class="drawer-head">
+      <h2 id="receipts-title">Receipts</h2>
       <button type="button" class="tiny" id="close-receipts">close</button>
     </div>
     <div class="table-wrap">
@@ -113,8 +107,8 @@
         <tbody id="history"></tbody>
       </table>
     </div>
-    <p class="empty" id="empty">No quests completed yet.</p>
-    <button type="button" class="tiny danger" id="reset">Close account (reset)</button>
+    <p class="empty" id="empty">No transactions yet. Suspiciously quiet.</p>
+    <button type="button" class="tiny danger" id="reset">Close account</button>
   </section>
 
   <script src="/static/app.js"></script>
