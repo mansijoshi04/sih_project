@@ -4,20 +4,20 @@
   const STORE_KEY = "aura-debt:v1";
   const $ = (id) => document.getElementById(id);
   const els = {
+    judge: $("judge"), judgeLine: $("judge-line"), court: $("court"),
+    desk: $("desk"), verdict: $("verdict"),
     balance: $("balance"), standing: $("standing"), vibe: $("vibe"), stamp: $("stamp"),
-    entry: $("entry"), counter: $("counter"), status: $("status"), txCount: $("tx-count"),
-    captions: $("captions"), capTyped: $("cap-typed"), caret: $("caret"), capResult: $("cap-result"), capTitle: $("cap-title"), capAmount: $("cap-amount"), capNext: $("cap-next"),
-    scrim: $("scrim"), notice: $("notice"), noticeRef: $("notice-ref"), noticeTitle: $("notice-title"),
-    noticeAmount: $("notice-amount"), noticeRoast: $("notice-roast"),
-    noticeSend: $("notice-send"), noticeRec: $("notice-rec"), noticeRewrite: $("notice-rewrite"), copyRewrite: $("copy-rewrite"),
-    noticeQuest: $("notice-quest"), noticeQuestText: $("notice-quest-text"), noticeSrc: $("notice-src"), closeNotice: $("close-notice"),
-    receipts: $("receipts"), openReceipts: $("open-receipts"), closeReceipts: $("close-receipts"),
+    entry: $("entry"), counter: $("counter"), status: $("status"), txCount: $("tx-count"), soundBtn: $("sound-toggle"),
+    larpBtn: $("larp-btn"), larpNote: $("larp-note"),
+    vBubble: $("v-bubble"), capTyped: $("cap-typed"), caret: $("caret"),
+    capResult: $("cap-result"), capTitle: $("cap-title"), capAmount: $("cap-amount"), capNext: $("cap-next"),
+    noticeRef: $("notice-ref"), noticeSend: $("notice-send"), noticeRec: $("notice-rec"), noticeRewrite: $("notice-rewrite"), copyRewrite: $("copy-rewrite"),
+    noticeQuest: $("notice-quest"), noticeQuestText: $("notice-quest-text"), noticeSrc: $("notice-src"),
+    scrim: $("scrim"), receipts: $("receipts"), openReceipts: $("open-receipts"), closeReceipts: $("close-receipts"),
     history: $("history"), empty: $("empty"), reset: $("reset"),
   };
   const actionButtons = Array.from(document.querySelectorAll(".btn[data-mode]"));
   const chips = Array.from(document.querySelectorAll(".chip"));
-  const larpBtn = $("larp-btn");
-  let larpOn = false;
   const reduceMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -120,7 +120,7 @@
 
   const TIERS = [
     { max: -10000, key: "chopped", name: "Chopped", vibe: "fully cooked. no return." },
-    { max: -3000, key: "crashout", name: "Crashout Era", vibe: "a crashout of historic proportions" },
+    { max: -3000, key: "crashout", name: "Crashout Era", vibe: "ur grandkids will feel this" },
     { max: -1, key: "fumble", name: "Fumble Arc", vibe: "recoverable. barely." },
     { max: 2999, key: "npc", name: "NPC", vibe: "default skin energy" },
     { max: 9999, key: "farmer", name: "Aura Farmer", vibe: "aura farming detected" },
@@ -129,39 +129,75 @@
   const tier = (b) => TIERS.find((t) => b <= t.max);
 
   const PLACEHOLDERS = [
-    "e.g. i said \"love you\" to my teacher",
-    "e.g. i waved at someone who wasn't waving at me",
-    "e.g. i walked into a glass door. the door won.",
-    "e.g. i laughed at a joke nobody made",
+    "type what you did... e.g. i waved at someone who wasn't waving at me",
+    "type what you did... e.g. i said \"love you\" to my teacher",
+    "type what you did... e.g. i walked into a glass door. the door won.",
+    "type what you did... or paste a text you're scared to send",
   ];
   const LOADING = [
     "Auditor reviewing your account…",
+    "the court is deliberating…",
     "checking the group chat…",
-    "consulting the sigma council…",
-    "running a vibe check…",
     "calculating fanum tax…",
+  ];
+  // what the judge says while you type, by confession length
+  const JUDGE_IDLE = "Order in the court. So… what did you do?";
+  const JUDGE_TYPING = [
+    [1, "go on…"],
+    [40, "oh no."],
+    [90, "bestie why"],
+    [160, "the court needs a minute"],
+    [260, "this is a lot of evidence"],
   ];
   const HOT = /^(aura|cooked|chopped|crashout|sigma|npc|fanum|glazing|rizz|delulu|fumble|fumbled|mewing|him|her|ate|cringe)[.,!?]*$/i;
 
-  // ---------- render ----------
-  function paintBalance(value) {
-    els.balance.textContent = fmt(value);
+  // ---------- the judge ----------
+  let mouthTimer = 0;
+  function setJudge(face, mouth = face === "shock" ? "shock" : face === "proud" ? "smile" : "idle", arm = "up") {
+    clearTimeout(mouthTimer); // a pending "stop talking" flap must not undo this face
+    els.judge.dataset.face = face;
+    els.judge.dataset.mouth = mouth;
+    els.judge.dataset.arm = arm;
   }
+  let lastLine = "";
+  function judgeSays(text) {
+    if (text === lastLine) return;
+    lastLine = text;
+    els.judgeLine.textContent = text;
+    restartAnim(els.judgeLine, "pop");
+  }
+  function flapMouth() {
+    els.judge.dataset.mouth = "talk";
+    clearTimeout(mouthTimer);
+    mouthTimer = setTimeout(() => { els.judge.dataset.mouth = "idle"; }, 110);
+  }
+  function reactToTyping() {
+    if (busy || !els.verdict.hidden) return;
+    const len = els.entry.value.trim().length;
+    document.body.classList.toggle("long-text", len > 160);
+    if (!len) { setJudge("idle"); judgeSays(JUDGE_IDLE); return; }
+    setJudge("typing");
+    let line = JUDGE_TYPING[0][1];
+    for (const [min, text] of JUDGE_TYPING) if (len >= min) line = text;
+    judgeSays(line);
+  }
+
+  // ---------- render ----------
+  function paintBalance(value) { els.balance.textContent = fmt(value); }
 
   function renderStanding(animate = false) {
     const b = state.balance;
     const t = tier(b);
     document.body.dataset.tier = t.key;
+    document.body.dataset.sign = b < 0 ? "neg" : b > 0 ? "pos" : "zero";
     els.standing.textContent = t.name;
     els.vibe.textContent = t.vibe;
     els.txCount.textContent = state.history.length ? String(state.history.length) : "";
-
     const wasHidden = els.stamp.hidden;
     if (b < 0) {
-      const collections = b <= -10000;
       els.stamp.hidden = false;
-      els.stamp.textContent = collections ? "Sent to collections" : "Overdrawn";
-      if (animate && (wasHidden || collections)) restartAnim(els.stamp, "pop");
+      els.stamp.textContent = b <= -10000 ? "sent to collections" : "overdrawn";
+      if (animate && wasHidden) restartAnim(els.stamp, "pop");
     } else {
       els.stamp.hidden = true;
     }
@@ -212,22 +248,24 @@
     }
   }
 
-  function fillNotice(r, mode) {
+  function fillResult(r, mode) {
     const amt = r.aura_change;
-    els.noticeRef.textContent = `#${String(state.history.length).padStart(4, "0")}` +
-      (r.larp_score != null ? ` \u00b7 LARP score ${r.larp_score}/100` : "");
-    els.noticeTitle.textContent = r.title;
-    els.noticeAmount.textContent = `${fmtSigned(amt)}`;
+    const sign = amt < 0 ? "neg" : "pos";
+    els.capTitle.textContent = r.title;
+    els.capTitle.className = `chopped ${sign}`;
+    els.capAmount.textContent = fmtSigned(amt);
     const unit = document.createElement("small");
     unit.textContent = "AURA";
-    els.noticeAmount.append(unit);
-    els.noticeAmount.className = `amount ${amt < 0 ? "neg" : "pos"}`;
-    els.noticeRoast.textContent = r.roast;
+    els.capAmount.append(unit);
+    els.capAmount.className = `v-amount ${sign}`;
+    els.noticeRef.textContent = `case #${String(state.history.length).padStart(4, "0")}` +
+      (r.larp_score != null ? ` · LARP score ${r.larp_score}/100` : "");
 
+    els.verdict.classList.toggle("has-send", mode === "send" && !!r.send_verdict);
     if (mode === "send" && r.send_verdict) {
       const ok = r.send_verdict === "SEND";
       els.noticeSend.hidden = false;
-      els.noticeRec.textContent = `Recommendation: ${r.send_verdict}`;
+      els.noticeRec.textContent = ok ? "Recommendation: SEND" : "Recommendation: DO NOT SEND";
       els.noticeRec.className = `rec ${ok ? "pos" : "neg"}`;
       els.noticeRewrite.textContent = r.rewrite || "(no rewrite on file)";
       els.copyRewrite.hidden = !r.rewrite;
@@ -241,33 +279,29 @@
       : r.source === "larp" ? "Verdict from the DeLARP Bureau of Aura Enforcement." : "";
   }
 
-  // ---------- sheets ----------
-  let lastFocus = null;
-  function openSheet(sheet, focusEl) {
-    lastFocus = document.activeElement;
-    els.scrim.hidden = false;
-    sheet.hidden = false;
-    (focusEl || sheet).focus({ preventScroll: true });
-  }
-  function closeSheets() {
-    els.notice.hidden = true;
-    els.receipts.hidden = true;
-    els.scrim.hidden = true;
-    if (lastFocus && lastFocus.focus) lastFocus.focus({ preventScroll: true });
-  }
-
-  // ---------- full-screen typewriter verdict ----------
-  // Tap 1 finishes the typing, tap 2 continues. It also continues on its own after a generous pause.
+  // ---------- the verdict: the judge speaks, then BANG ----------
+  // A tap while typing finishes the line; a tap after that continues.
   let advance = null;
-  function tapToAdvance() { return new Promise((res) => { advance = res; }); }
-  els.captions.addEventListener("click", () => advance && advance());
+  const tapToAdvance = () => new Promise((res) => { advance = res; });
+  els.vBubble.addEventListener("click", () => advance && advance());
+  els.capNext.addEventListener("click", () => { sfx.pop(); if (advance) advance(); });
+
+  function writeWords(text, target) {
+    target.replaceChildren();
+    text.split(/(\s+)/).forEach((w) => {
+      if (/^\s+$/.test(w)) return target.append(w);
+      const span = document.createElement("span");
+      if (HOT.test(w)) span.className = "hot";
+      span.textContent = w;
+      target.append(span);
+    });
+  }
 
   async function typeOut(text) {
     els.capTyped.replaceChildren();
     let interrupted = false;
     const tapped = tapToAdvance().then(() => { interrupted = true; });
-    const words = text.split(/(\s+)/);
-    for (const w of words) {
+    for (const w of text.split(/(\s+)/)) {
       if (interrupted) break;
       if (/^\s+$/.test(w)) { els.capTyped.append(w); continue; }
       const span = document.createElement("span");
@@ -275,66 +309,79 @@
       els.capTyped.append(span);
       for (const ch of w) {
         if (interrupted) break;
-        if (!span.textContent) sfx.blip();
+        if (!span.textContent) { sfx.blip(); flapMouth(); }
         span.textContent += ch;
-        const pause = /[.!?]/.test(ch) ? 380 : /[,;:]/.test(ch) ? 200 : 48;
+        const pause = /[.!?]/.test(ch) ? 380 : /[,;:]/.test(ch) ? 200 : 45;
         await Promise.race([wait(pause), tapped]);
       }
     }
-    // a tap mid-typing shows the whole line at once
-    if (interrupted) {
-      els.capTyped.replaceChildren();
-      text.split(/(\s+)/).forEach((w) => {
-        if (/^\s+$/.test(w)) return els.capTyped.append(w);
-        const span = document.createElement("span");
-        if (HOT.test(w)) span.className = "hot";
-        span.textContent = w;
-        els.capTyped.append(span);
-      });
-    }
+    if (interrupted) writeWords(text, els.capTyped);
     return interrupted;
   }
 
-  async function playVerdict(r) {
-    if (reduceMotion()) { sfx.result(r.aura_change); return; }
-    els.captions.dataset.tier = tier(state.balance).key;
+  async function playVerdict(r, mode) {
+    fillResult(r, mode);
+    document.body.classList.add("in-verdict");
+    document.body.classList.remove("long-text");
+    els.desk.hidden = true;
+    els.verdict.hidden = false;
     els.capResult.hidden = true;
     els.caret.hidden = false;
-    els.capNext.textContent = "tap to skip";
+    els.capNext.textContent = "skip";
     els.capNext.classList.remove("ready");
-    document.body.classList.add("capping");
-    els.captions.hidden = false;
+    setJudge("idle");
 
-    const wasTapped = await typeOut(r.roast);
-    if (!wasTapped) await Promise.race([wait(1400), tapToAdvance()]);
+    if (reduceMotion()) writeWords(r.roast, els.capTyped);
+    else {
+      const wasTapped = await typeOut(r.roast);
+      if (!wasTapped) await Promise.race([wait(700), tapToAdvance()]);
+    }
 
+    // BANG
     els.caret.hidden = true;
-    els.capTitle.textContent = r.title;
-    els.capAmount.textContent = `${fmtSigned(r.aura_change)} aura`;
+    setJudge(r.aura_change < 0 ? "shock" : "proud", undefined, "down");
+    restartAnim(els.court, "bang");
+    sfx.result(r.aura_change);
     els.capResult.hidden = false;
-    setTimeout(() => sfx.result(r.aura_change), 250);
-    els.capNext.textContent = "tap to continue";
+    els.capNext.textContent = "continue";
     els.capNext.classList.add("ready");
-    await wait(450);
-    await Promise.race([wait(6000), tapToAdvance()]);
+    els.capNext.focus({ preventScroll: true });
+    await tapToAdvance();
 
     advance = null;
-    els.captions.hidden = true;
-    document.body.classList.remove("capping");
+    els.verdict.hidden = true;
+    els.desk.hidden = false;
+    document.body.classList.remove("in-verdict");
+  }
+
+  // ---------- receipts ----------
+  function openLog() {
+    renderHistory();
+    els.scrim.hidden = false;
+    els.receipts.hidden = false;
+    els.closeReceipts.focus({ preventScroll: true });
+  }
+  function closeLog() {
+    els.scrim.hidden = true;
+    els.receipts.hidden = true;
+    els.openReceipts.focus({ preventScroll: true });
   }
 
   // ---------- actions ----------
+  let busy = false;
   let loadingTimer = 0;
-  function setBusy(busy) {
-    actionButtons.forEach((b) => (b.disabled = busy));
-    if (larpOn) larpBtn.disabled = busy;
-    chips.forEach((c) => (c.disabled = busy));
-    els.entry.readOnly = busy;
+  function setBusy(on) {
+    busy = on;
+    actionButtons.forEach((b) => (b.disabled = on));
+    chips.forEach((c) => (c.disabled = on));
+    if (larpOn) els.larpBtn.disabled = on;
+    els.entry.readOnly = on;
     clearInterval(loadingTimer);
-    els.status.className = busy ? "status busy" : "status";
-    if (busy) {
+    els.status.className = "status";
+    if (on) {
       let i = 0;
       els.status.textContent = LOADING[0];
+      judgeSays("the court is deliberating…");
       loadingTimer = setInterval(() => { i = (i + 1) % LOADING.length; els.status.textContent = LOADING[i]; }, 1400);
     } else {
       els.status.textContent = "";
@@ -346,6 +393,7 @@
     if (!text) {
       els.status.className = "status err";
       els.status.textContent = "418 Too Delulu: the box is empty. Type what you did first.";
+      judgeSays("the court cannot audit vibes alone.");
       sfx.error();
       els.entry.focus();
       return;
@@ -363,31 +411,31 @@
     } catch (err) {
       setBusy(false);
       els.status.className = "status err";
-      els.status.textContent = `Transaction declined: ${err.message}`;
+      els.status.textContent = `Case dismissed: ${err.message}`;
+      judgeSays("technical difficulties. try again.");
       sfx.error();
       return;
     }
 
     const amount = Math.round(Number(data.aura_change) || 0);
-    const verdict = { ...data, aura_change: amount, roast: data.roast || "No comment." };
+    const verdict = { ...data, aura_change: amount, roast: data.roast || "No comment.", title: data.title || "Case closed" };
     state.balance += amount;
-    state.history.unshift({ ts: Date.now(), summary: data.summary || "Unlabelled transaction", amount, balance: state.balance });
+    state.history.unshift({ ts: Date.now(), summary: data.summary || "Unlabelled case", amount, balance: state.balance });
     state.history = state.history.slice(0, 200);
     save();
 
     setBusy(false);
     els.entry.value = "";
     updateCounter();
-    fillNotice(verdict, mode);
     renderHistory();
 
-    await playVerdict(verdict);
+    await playVerdict(verdict, mode);
 
     renderStanding(true);
     animateTo(state.balance);
     restartAnim(els.balance, amount < 0 ? "shake" : "bounce");
-    if (!reduceMotion()) await wait(900);
-    openSheet(els.notice, els.closeNotice);
+    judgeSays(amount < 0 ? "next case. try to do better." : "the court is… impressed?");
+    setTimeout(() => { if (!busy && els.verdict.hidden) { setJudge("idle"); } }, 2500);
   }
 
   function updateCounter() {
@@ -401,11 +449,12 @@
     sfx.pop();
     els.entry.value = c.dataset.text;
     updateCounter();
+    reactToTyping();
     els.entry.focus();
     els.status.className = "status";
-    els.status.textContent = c.dataset.mode === "send" ? "loaded. hit SHOULD I SEND?" : "loaded. hit CONFESS.";
+    els.status.textContent = c.dataset.mode === "send" ? "loaded. now hit SHOULD I SEND?" : "loaded. now hit CONFESS.";
   }));
-  els.entry.addEventListener("input", updateCounter);
+  els.entry.addEventListener("input", () => { updateCounter(); reactToTyping(); });
   els.entry.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) submit("confess");
   });
@@ -417,44 +466,45 @@
       els.copyRewrite.textContent = "copy failed";
     }
   });
-  els.closeNotice.addEventListener("click", () => { sfx.pop(); closeSheets(); });
-  const soundBtn = document.getElementById("sound-toggle");
-  const paintSound = () => { soundBtn.textContent = sfx.on ? "sound on" : "sound off"; soundBtn.setAttribute("aria-pressed", String(sfx.on)); };
-  soundBtn.addEventListener("click", () => { sfx.on = !sfx.on; paintSound(); if (sfx.on) sfx.pop(); });
-  paintSound();
-  els.scrim.addEventListener("click", closeSheets);
-  els.openReceipts.addEventListener("click", () => { renderHistory(); openSheet(els.receipts, els.closeReceipts); });
-  els.closeReceipts.addEventListener("click", closeSheets);
+  els.openReceipts.addEventListener("click", () => { sfx.pop(); openLog(); });
+  els.closeReceipts.addEventListener("click", closeLog);
+  els.scrim.addEventListener("click", closeLog);
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
     if (advance) advance();
-    else closeSheets();
+    else if (!els.receipts.hidden) closeLog();
   });
   els.reset.addEventListener("click", () => {
     if (!confirm("Close this account? All aura history will be deleted.")) return;
     state = freshState();
     save();
-    closeSheets();
+    closeLog();
     renderHistory();
     renderStanding();
     animateTo(0);
+    setJudge("idle");
+    judgeSays(JUDGE_IDLE);
   });
+  const paintSound = () => { els.soundBtn.textContent = sfx.on ? "sound on" : "sound off"; els.soundBtn.setAttribute("aria-pressed", String(sfx.on)); };
+  els.soundBtn.addEventListener("click", () => { sfx.on = !sfx.on; paintSound(); if (sfx.on) sfx.pop(); });
 
   // LARP check unlocks when the server has the teammate's API configured
-  larpBtn.addEventListener("click", () => { if (!larpOn) return; sfx.unlock(); sfx.pop(); submit("larp"); });
+  let larpOn = false;
+  els.larpBtn.addEventListener("click", () => { if (!larpOn) return; sfx.unlock(); sfx.pop(); submit("larp"); });
   fetch("/api/health").then((r) => r.json()).then((h) => {
     if (!h.larp_enabled) return;
     larpOn = true;
-    larpBtn.disabled = false;
-    larpBtn.classList.add("larp-on");
-    $("larp-note").textContent = "paste a post: is it a LARP?";
+    els.larpBtn.disabled = false;
+    els.larpBtn.classList.add("on");
+    els.larpNote.textContent = "is this post a LARP?";
   }).catch(() => { /* stays locked */ });
 
   // ---------- init ----------
-  els.entry.placeholder = `type here... ${pick(PLACEHOLDERS)}`;
-  if (window.matchMedia("(min-width: 700px)").matches) els.entry.focus({ preventScroll: true });
+  els.entry.placeholder = pick(PLACEHOLDERS);
+  paintSound();
   paintBalance(state.balance);
   renderStanding();
   renderHistory();
   updateCounter();
+  if (window.matchMedia("(min-width: 821px)").matches) els.entry.focus({ preventScroll: true });
 })();

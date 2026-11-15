@@ -4,111 +4,176 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Aura Reserve Bank</title>
-  <meta name="description" content="Aura Debt: confess your cringe, get audited.">
+  <meta name="description" content="Aura Debt: confess your cringe, the court decides your aura.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400..700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Permanent+Marker&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/style.css">
 </head>
-<body data-tier="npc">
+<body data-tier="npc" data-sign="zero">
 
   <header class="top">
-    <span class="brand">Aura Reserve Bank</span>
+    <p class="rizz">Aura balances are not legal tender and <span>cannot be exchanged for rizz.</span></p>
     <div class="top-actions">
-      <button type="button" class="ghost" id="sound-toggle" aria-pressed="true">sound on</button>
-      <button type="button" class="ghost" id="open-receipts" aria-haspopup="dialog">receipts <span class="count" id="tx-count"></span></button>
+      <button type="button" class="mini" id="sound-toggle" aria-pressed="true">sound on</button>
+      <button type="button" class="mini" id="open-receipts" aria-haspopup="dialog">receipts <span class="count" id="tx-count"></span></button>
     </div>
   </header>
 
-  <p class="legal">Aura balances are not legal tender and cannot be exchanged for rizz.</p>
+  <main class="main">
+    <!-- the court: Hon. Judge Aura (original character, plain SVG) -->
+    <section class="court" id="court">
+      <p class="bubble" id="judge-line">Order in the court. So&hellip; what did you do?</p>
+      <svg class="judge" id="judge" viewBox="0 0 420 470" data-face="idle" data-mouth="idle" data-arm="up" role="img" aria-label="Honourable Judge Aura, a tiny judge in a huge wig">
+        <g stroke="#0d0d10" stroke-width="5" stroke-linejoin="round" stroke-linecap="round">
+          <g class="j-body">
+            <!-- wig side curls -->
+            <g fill="#f6f1e4">
+              <circle cx="122" cy="196" r="24"/><circle cx="114" cy="236" r="25"/><circle cx="120" cy="276" r="24"/><circle cx="130" cy="312" r="21"/>
+              <circle cx="298" cy="196" r="24"/><circle cx="306" cy="236" r="25"/><circle cx="300" cy="276" r="24"/><circle cx="290" cy="312" r="21"/>
+            </g>
+            <!-- robe + jabot -->
+            <path d="M128 318 Q210 268 292 318 L330 420 L90 420 Z" fill="#3a3a48"/>
+            <path d="M188 292 L232 292 L240 318 L226 312 L222 338 L210 326 L198 338 L194 312 L180 318 Z" fill="#ffffff"/>
 
-  <main class="stage">
-    <section class="meter" aria-live="polite">
-      <p class="meter-label">your aura</p>
-      <p class="balance" id="balance">0</p>
-      <p class="tier" id="standing">NPC</p>
-      <p class="vibe" id="vibe"></p>
-      <span class="stamp" id="stamp" hidden>Overdrawn</span>
+            <g class="j-head">
+              <ellipse cx="210" cy="214" rx="72" ry="74" fill="#ffcf9e"/>
+              <g fill="#f6f1e4">
+                <circle cx="150" cy="168" r="28"/><circle cx="178" cy="146" r="30"/><circle cx="210" cy="138" r="31"/><circle cx="242" cy="146" r="30"/><circle cx="270" cy="168" r="28"/>
+                <circle cx="136" cy="200" r="20"/><circle cx="284" cy="200" r="20"/>
+              </g>
+              <ellipse cx="168" cy="242" rx="13" ry="8" fill="#ff8fb8" stroke="none" opacity=".75"/>
+              <ellipse cx="252" cy="242" rx="13" ry="8" fill="#ff8fb8" stroke="none" opacity=".75"/>
+
+              <!-- face: idle / typing (unimpressed squint) -->
+              <g class="f f-idle">
+                <path d="M166 200 Q182 192 198 200" fill="none" stroke-width="6"/>
+                <path d="M222 200 Q238 192 254 200" fill="none" stroke-width="6"/>
+                <g class="eyes">
+                  <ellipse cx="182" cy="216" rx="11" ry="9" fill="#ffffff"/>
+                  <ellipse cx="238" cy="216" rx="11" ry="9" fill="#ffffff"/>
+                  <g class="pupils" stroke="none" fill="#0d0d10"><circle cx="185" cy="217" r="5"/><circle cx="241" cy="217" r="5"/></g>
+                </g>
+              </g>
+              <!-- face: scandalised (aura lost) -->
+              <g class="f f-shock">
+                <path d="M164 186 Q180 172 198 184" fill="none" stroke-width="6"/>
+                <path d="M222 184 Q240 172 256 186" fill="none" stroke-width="6"/>
+                <ellipse cx="182" cy="214" rx="15" ry="17" fill="#ffffff"/><circle cx="182" cy="216" r="6" fill="#0d0d10" stroke="none"/>
+                <ellipse cx="238" cy="214" rx="15" ry="17" fill="#ffffff"/><circle cx="238" cy="216" r="6" fill="#0d0d10" stroke="none"/>
+              </g>
+              <!-- face: proud (aura gained) -->
+              <g class="f f-proud">
+                <path d="M166 194 Q182 188 198 194" fill="none" stroke-width="6"/>
+                <path d="M222 194 Q238 188 254 194" fill="none" stroke-width="6"/>
+                <path d="M170 220 Q182 206 194 220" fill="none" stroke-width="6"/>
+                <path d="M226 220 Q238 206 250 220" fill="none" stroke-width="6"/>
+              </g>
+
+              <!-- mouths -->
+              <path class="m m-idle" d="M196 254 Q212 248 226 256" fill="none" stroke-width="5"/>
+              <ellipse class="m m-talk" cx="211" cy="256" rx="10" ry="9" fill="#5a1630"/>
+              <ellipse class="m m-shock" cx="210" cy="258" rx="12" ry="15" fill="#5a1630"/>
+              <path class="m m-smile" d="M190 248 Q210 272 230 248 Z" fill="#5a1630"/>
+
+              <!-- nervous sweat (long confessions) -->
+              <path class="sweat" d="M276 180 Q284 196 276 202 Q268 196 276 180 Z" fill="#7fd6ff"/>
+            </g>
+          </g>
+
+          <!-- gavel raised (idle) -->
+          <g class="arm arm-up">
+            <path d="M292 330 Q330 300 336 252" fill="none" stroke-width="16" stroke="#0d0d10"/>
+            <path d="M292 330 Q330 300 336 252" fill="none" stroke-width="8" stroke="#3a3a48"/>
+            <circle cx="337" cy="246" r="13" fill="#ffcf9e"/>
+            <rect x="331" y="190" width="12" height="62" rx="5" fill="#8a5a2b" transform="rotate(-18 337 246)"/>
+            <rect x="300" y="170" width="70" height="34" rx="9" fill="#a8693a" transform="rotate(-18 337 246)"/>
+            <path d="M314 172 L314 204 M356 172 L356 204" transform="rotate(-18 337 246)" fill="none" stroke-width="4"/>
+          </g>
+          <!-- gavel slammed (verdict) -->
+          <g class="arm arm-down">
+            <path d="M292 330 Q340 336 352 360" fill="none" stroke-width="16" stroke="#0d0d10"/>
+            <path d="M292 330 Q340 336 352 360" fill="none" stroke-width="8" stroke="#3a3a48"/>
+            <circle cx="354" cy="362" r="13" fill="#ffcf9e"/>
+            <rect x="348" y="300" width="12" height="62" rx="5" fill="#8a5a2b" transform="rotate(70 354 362)"/>
+            <rect x="372" y="330" width="34" height="62" rx="9" fill="#a8693a"/>
+            <path class="bang-lines" d="M362 340 L374 330 M362 384 L374 392 M410 350 L420 344" fill="none" stroke="#c6ff3d" stroke-width="5"/>
+          </g>
+
+          <!-- bench -->
+          <rect x="34" y="368" width="352" height="22" rx="4" fill="#9a5a30"/>
+          <rect x="44" y="388" width="332" height="82" fill="#7a4424"/>
+          <path d="M100 400 L100 462 M210 400 L210 462 M320 400 L320 462" fill="none" stroke="#5c311a" stroke-width="5"/>
+          <rect x="110" y="404" width="200" height="38" rx="4" fill="#c6ff3d"/>
+        </g>
+        <text x="210" y="431" text-anchor="middle" font-family="Permanent Marker, cursive" font-size="18" fill="#0d0d10">HON. JUDGE AURA</text>
+      </svg>
     </section>
 
-    <section class="composer" aria-label="New transaction">
-      <div class="step-row">
-        <span class="step">1</span>
-        <label for="entry"><b>Type what you did</b> <span>or paste a text you&rsquo;re scared to send</span></label>
+    <!-- the confession desk -->
+    <section class="desk" id="desk" aria-label="Your account">
+      <p class="label">your aura</p>
+      <div class="score" aria-live="polite">
+        <p class="num" id="balance">0</p>
+        <span class="rank" id="standing">NPC</span>
       </div>
+      <div class="meta"><span class="vibe" id="vibe"></span><span class="debuff" id="stamp" hidden>overdrawn</span></div>
       <div class="field">
-        <textarea id="entry" rows="2" maxlength="1000" placeholder="type here..."></textarea>
+        <label class="sr-only" for="entry">Type what you did, or paste a text you're scared to send</label>
+        <textarea id="entry" rows="2" maxlength="1000"></textarea>
         <span class="counter" id="counter">0/1000</span>
       </div>
       <div class="chips">
-        <span class="chips-label">no ideas? tap one:</span>
+        <span class="chips-label">try:</span>
         <button type="button" class="chip" data-mode="confess" data-text="I said &quot;you too&quot; when the waiter told me to enjoy my meal.">the waiter</button>
         <button type="button" class="chip" data-mode="confess" data-text="I waved back at someone who was waving at the person behind me. Then I pretended to fix my hair.">the wave</button>
         <button type="button" class="chip" data-mode="send" data-text="Context: we went on one date 3 weeks ago and she left me on delivered. Message: &quot;hey so i was just wondering if u ever got my last message lol&quot;">the follow-up</button>
       </div>
-      <div class="step-row">
-        <span class="step">2</span>
-        <span><b>Get audited</b></span>
-      </div>
-      <div class="actions">
-        <button type="button" class="btn btn-primary" data-mode="confess">Confess</button>
-        <button type="button" class="btn" data-mode="send">Should I send?</button>
-        <span class="larp">
-          <button type="button" class="btn" id="larp-btn" disabled>LARP check</button>
-          <small id="larp-note">Service available Q3</small>
-        </span>
+      <div class="btns">
+        <button type="button" class="btn go" data-mode="confess">Confess</button>
+        <button type="button" class="btn alt" data-mode="send">Should I send?</button>
+        <button type="button" class="btn lock" id="larp-btn" disabled>LARP check <small id="larp-note">(Q3)</small></button>
       </div>
       <p class="status" id="status" role="status"></p>
     </section>
+
+    <!-- the verdict, delivered next to the judge -->
+    <section class="desk verdict" id="verdict" hidden aria-live="polite">
+      <div class="v-bubble" id="v-bubble">
+        <span class="who">the court finds&hellip;</span>
+        <span id="cap-typed"></span><span class="caret" id="caret"></span>
+      </div>
+      <div class="result" id="cap-result" hidden>
+        <p class="chopped" id="cap-title"></p>
+        <p class="v-amount" id="cap-amount"></p>
+        <p class="v-ref" id="notice-ref"></p>
+        <div class="send-block" id="notice-send" hidden>
+          <p class="rec" id="notice-rec"></p>
+          <p class="sub">higher-aura rewrite <button type="button" class="mini" id="copy-rewrite">copy</button></p>
+          <blockquote class="rewrite" id="notice-rewrite"></blockquote>
+        </div>
+        <p class="sentence" id="notice-quest" hidden><b>Sentence:</b> <span id="notice-quest-text"></span></p>
+        <p class="src" id="notice-src"></p>
+      </div>
+      <button type="button" class="btn go next" id="cap-next">skip</button>
+    </section>
   </main>
 
-  <!-- the verdict types out here, full screen -->
-  <div class="captions" id="captions" hidden>
-    <p class="cap-kicker">the auditor says</p>
-    <p class="cap-line"><span id="cap-typed"></span><span class="caret" id="caret"></span></p>
-    <div class="cap-result" id="cap-result" hidden>
-      <p class="cap-title" id="cap-title"></p>
-      <p class="cap-amount" id="cap-amount"></p>
-    </div>
-    <button type="button" class="cap-next" id="cap-next">tap to skip</button>
-  </div>
-
-  <!-- then lands here -->
+  <!-- receipts -->
   <div class="scrim" id="scrim" hidden></div>
-  <section class="sheet" id="notice" hidden role="dialog" aria-modal="true" aria-labelledby="notice-title">
-    <p class="kicker">Auditor&rsquo;s notice <span id="notice-ref"></span></p>
-    <h2 class="notice-title" id="notice-title"></h2>
-    <p class="amount" id="notice-amount"></p>
-    <p class="roast" id="notice-roast"></p>
-    <div class="block" id="notice-send" hidden>
-      <p class="rec" id="notice-rec"></p>
-      <div class="sub-row">
-        <p class="sub">Higher-aura rewrite</p>
-        <button type="button" class="tiny" id="copy-rewrite">copy</button>
-      </div>
-      <blockquote class="rewrite" id="notice-rewrite"></blockquote>
-    </div>
-    <div class="block" id="notice-quest" hidden>
-      <p class="sub">Repayment plan &middot; side quest</p>
-      <p class="quest" id="notice-quest-text"></p>
-    </div>
-    <p class="src" id="notice-src"></p>
-    <button type="button" class="btn btn-primary wide" id="close-notice">bet</button>
-  </section>
-
-  <section class="sheet drawer" id="receipts" hidden role="dialog" aria-modal="true" aria-labelledby="receipts-title">
-    <div class="drawer-head">
+  <section class="sheet" id="receipts" hidden role="dialog" aria-modal="true" aria-labelledby="receipts-title">
+    <div class="sheet-head">
       <h2 id="receipts-title">Receipts</h2>
-      <button type="button" class="tiny" id="close-receipts">close</button>
+      <button type="button" class="mini" id="close-receipts">close</button>
     </div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th class="c-date">Date</th><th>Description</th><th class="num">Amount</th><th class="num">Balance</th></tr></thead>
+        <thead><tr><th class="c-date">Date</th><th>Description</th><th class="num-col">Amount</th><th class="num-col">Balance</th></tr></thead>
         <tbody id="history"></tbody>
       </table>
     </div>
-    <p class="empty" id="empty">No transactions yet. Suspiciously quiet.</p>
-    <button type="button" class="tiny danger" id="reset">Close account</button>
+    <p class="empty" id="empty">No cases on file. Suspiciously quiet.</p>
+    <button type="button" class="mini danger" id="reset">Close account (reset)</button>
   </section>
 
   <script src="/static/app.js"></script>
