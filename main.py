@@ -7,6 +7,7 @@ import logging
 import os
 import random
 import re
+import urllib.request
 from pathlib import Path
 from typing import Literal, Optional
 
@@ -24,6 +25,8 @@ logging.basicConfig(level=logging.INFO)
 
 MODEL = "claude-haiku-5-5"
 MAX_CHARS = 1000
+# Teammate's DeLARP API (POST {LARP_API_URL}/api/analyze). Unset = LARP check stays locked.
+LARP_API_URL = os.getenv("LARP_API_URL", "").strip().rstrip("/")
 AURA_MIN, AURA_MAX = -10000, 5000
 BASE_DIR = Path(__file__).parent
 STATIC_DIR = BASE_DIR / "static"
@@ -43,7 +46,14 @@ class AuraResponse(BaseModel):
     rewrite: Optional[str] = None
     side_quest: Optional[str] = None
     summary: str
-    source: Literal["auditor", "mock"] = "auditor"
+    source: Literal["auditor", "mock", "larp"] = "auditor"
+    larp_score: Optional[int] = None
+
+
+class LarpRequest(BaseModel):
+    text: str = Field(default="", max_length=MAX_CHARS)
+    username: Optional[str] = Field(default=None, max_length=100)
+    platform: Optional[Literal["linkedin", "x"]] = None
 
 
 # ---------------------------------------------------------------- prompts
@@ -242,9 +252,102 @@ def audit(req: AuraRequest):
     return ask_auditor(req.mode, text)
 
 
+# ---------------------------------------------------------------- LARP check (teammate's API)
+MOCK_LARP = [
+    dict(aura_change=-6900, title="Stealth Mode: Now With 100% Less Company", larp_score=96,
+         roast="Congrats on the $10M ARR. Couldn't find the company, product or website, so the stealth is really working.",
+         side_quest="Ship literally anything.", summary="LARP caught: stealth founder"),
+    dict(aura_change=-4200, title="Thought Leader, No Thoughts", larp_score=88,
+         roast="Eleven buzzwords, zero information. The bank admires the efficiency.",
+         side_quest="Touch grass for 3 consecutive business days.", summary="LARP caught: buzzword overdose"),
+    dict(aura_change=650, title="Real Talk Detected", larp_score=12,
+         roast="Specific, humble and verifiable. Suspiciously un-LARP. Aura credited.",
+         side_quest=None, summary="LARP check passed"),
+]
+
+
+def _first(d: dict, *keys):
+    for k in keys:
+        v = d.get(k)
+        if v not in (None, ""):
+            return v
+    return None
+
+
+def map_larp_verdict(data: dict) -> AuraResponse:
+    """The analyze response shape isn't documented yet, so accept the likely field names."""
+    for nested in ("verdict", "result", "data"):
+        if isinstance(data.get(nested), dict):
+            data = {**data, **data[nested]}
+    aura = data.get("aura") if isinstance(data.get("aura"), dict) else {}
+
+    score = _first(data, "larp_score", "larpScore", "score")
+    score = int(round(float(score))) if score is not None else None
+    is_larp = _first(data, "is_larp", "isLarp", "larp", "on_larp_list")
+    if is_larp is None:
+        is_larp = score is None or score >= 50
+
+    change = _first(data, "aura_change", "auraChange", "aura_delta")
+    if change is None and aura.get("balance") is not None:
+        change = aura["balance"]
+    if change is None:
+        change = -(score or 70) * 75 if is_larp else 400
+    change = max(AURA_MIN, min(AURA_MAX, int(round(float(change)))))
+
+    title = _first(data, "verdict", "title", "headline", "last_known_verdict")
+    if not isinstance(title, str):
+        title = "LARP Detected" if change < 0 else "Real Talk Detected"
+    roast = _first(data, "comment", "roast", "reply", "message", "last_known_comment", "summary")
+    if not isinstance(roast, str):
+        roast = "The DeLARP Bureau has reviewed this post and has questions."
+    side_quest = _first(aura, "minimum_payment") or _first(data, "side_quest", "advice")
+    return AuraResponse(
+        aura_change=change,
+        title=title[:120],
+        roast=roast[:400],
+        side_quest=(str(side_quest) if change < 0 and side_quest else ("Touch grass and report back." if change < 0 else None)),
+        summary=f"LARP check: {title[:40]}",
+        source="larp",
+        larp_score=score,
+    )
+
+
+def larp_check(req: LarpRequest, text: str) -> AuraResponse:
+    payload = {"text": text}
+    if req.username:
+        payload["username"] = req.username
+    if req.platform:
+        payload["platform"] = req.platform
+    try:
+        http_req = urllib.request.Request(
+            f"{LARP_API_URL}/api/analyze",
+            data=json.dumps(payload).encode(),
+            headers={"Content-Type": "application/json", "Accept": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(http_req, timeout=25) as resp:
+            data = json.loads(resp.read().decode())
+        if not isinstance(data, dict):
+            raise ValueError("unexpected LARP response")
+        return map_larp_verdict(data)
+    except Exception as exc:  # demo must never break
+        log.warning("LARP API unavailable, using backup verdict: %s", exc)
+        return AuraResponse(**random.choice(MOCK_LARP), source="mock")
+
+
+@app.post("/api/larp", response_model=AuraResponse)
+def larp(req: LarpRequest):
+    text = req.text.strip()
+    if not text:
+        return JSONResponse(status_code=418, content={"detail": "418 Too Delulu: paste a post to LARP-check first."})
+    if not LARP_API_URL:
+        return JSONResponse(status_code=503, content={"detail": "LARP check: service available Q3 (LARP_API_URL not set)."})
+    return larp_check(req, text)
+
+
 @app.get("/api/health")
 def health():
-    return {"status": "solvent", "mock_mode": get_client() is None}
+    return {"status": "solvent", "mock_mode": get_client() is None, "larp_enabled": bool(LARP_API_URL)}
 
 
 @app.get("/")
