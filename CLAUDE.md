@@ -51,7 +51,7 @@ Without `ANTHROPIC_API_KEY` the app runs in mock mode (`/api/health` reports `mo
 - Test servers: kill them by port (`ss -ltnp`), not `pkill -f`, which matches its own shell command.
 
 ## Deployment
-- Demo video: `public/demo.mp4` (60s, Kokoro narration) + `public/demo-poster.jpg`, opened from the play icon in the top bar. It lives in `public/` because Vercel serves that folder from its CDN; a Python function can't return more than 4.5 MB. `main.py` has `/demo.mp4` and `/demo-poster.jpg` routes only so it also works locally.
+- Demo video: `static/demo.mp4` (60s, Kokoro narration + the app's own sfx, 960x540, ~2.3 MB) + `static/demo-poster.jpg`, opened from the play icon in the top bar. Keep it under ~4 MB: everything is served through the Python function, which can't return more than 4.5 MB. (A `public/` folder broke the Vercel deploys, so don't bring it back.)
 Target is **Vercel** (Python runtime, zero-config FastAPI: Vercel detects `app` in `main.py`). Set `ANTHROPIC_API_KEY` in the Vercel project's environment variables. Keep paths relative to `Path(__file__).parent`, keep the app stateless (serverless), and don't write to disk at runtime.
 
 ## Working conventions

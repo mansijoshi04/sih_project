@@ -250,14 +250,14 @@
     <button type="button" class="mini danger" id="reset">Close account (reset)</button>
   </section>
 
-  <!-- the 60-second demo (public/demo.mp4: served by Vercel's CDN, too big for the Python function) -->
+  <!-- the 60-second demo: static/demo.mp4, kept under 4 MB so the Python function can serve it on Vercel -->
   <section class="sheet demo-sheet" id="demo" hidden role="dialog" aria-modal="true" aria-labelledby="demo-title">
     <div class="sheet-head">
       <h2 id="demo-title">The 60-second demo</h2>
       <button type="button" class="mini" id="close-demo">close</button>
     </div>
-    <video id="demo-video" controls playsinline preload="none" poster="/demo-poster.jpg">
-      <source src="/demo.mp4" type="video/mp4">
+    <video id="demo-video" controls playsinline preload="none" poster="/static/demo-poster.jpg">
+      <source src="/static/demo.mp4" type="video/mp4">
     </video>
   </section>
 
