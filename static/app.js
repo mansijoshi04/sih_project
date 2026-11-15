@@ -352,7 +352,7 @@
     els.noticeQuest.hidden = !(amt < 0 && r.side_quest);
     els.noticeQuestText.textContent = r.side_quest || "";
     els.noticeSrc.textContent = r.source === "mock" ? "Verdict from the backup ledger (offline mode)."
-      : r.source === "larp" ? "Verdict from the DeLARP Bureau of Aura Enforcement." : "";
+      : r.source === "larp" ? "LARP check by the DeLARP team's Stupid API (they're presenting too)." : "";
   }
 
   // ---------- "should I send?": three ready-to-send replies, from safe to reckless ----------
@@ -527,7 +527,7 @@
     if (els.wanted.hidden) return;
     countUp(els.natDebt, data.national_aura_debt);
     els.natCeiling.textContent = data.debt_ceiling ? `· debt ceiling: ${data.debt_ceiling}` : "";
-    els.wantedSrc.textContent = data.source === "mock" ? "Bureau offline: showing the last records on file." : "Live from the DeLARP Bureau of Aura Enforcement.";
+    els.wantedSrc.textContent = data.source === "mock" ? "DeLARP's Stupid API is offline: showing the last records on file." : "Live from the DeLARP team's Stupid API.";
     const seen = new Set();
     const list = (data.most_wanted || []).filter((w) => {
       const key = `${w.username}|${w.platform}`;
@@ -844,7 +844,7 @@
     els.larpBtn.disabled = false;
     els.larpBtn.classList.add("on");
     els.larpNote.textContent = "";
-    els.larpBtn.title = "Is this post a LARP? (paste text or a screenshot)";
+    els.larpBtn.title = "Is this post a LARP? Powered by the DeLARP team's Stupid API";
     document.querySelectorAll(".larp-only").forEach((x) => { x.hidden = false; });
     document.body.classList.add("larp-on");
   }).catch(() => { /* stays locked */ });
