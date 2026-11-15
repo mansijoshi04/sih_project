@@ -1,0 +1,139 @@
+/* "Group chat": the auditor is a contact who texts you back. System fonts on purpose: it should feel like a phone. */
+body {
+  --page: #dedbd4; --bg: #ffffff; --ink: #111111; --soft: #6e6e73; --line: #e7e5e1;
+  --in: #efeeeb; --out: #111111; --red: #c8322a; --green: #1d7f47;
+  background: var(--page); color: var(--ink);
+  font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+}
+.neg { color: var(--red); }
+.pos { color: var(--green); }
+
+.app {
+  max-width: 480px; min-height: calc(100vh - 41px); margin: 0 auto; background: var(--bg);
+  display: flex; flex-direction: column; border-left: 1px solid var(--line); border-right: 1px solid var(--line);
+}
+.head { order: 1; } .legal { order: 2; } .balance-block { order: 3; } .history { order: 4; }
+.notice { order: 5; } .slip { order: 6; } .foot { order: 7; }
+
+.branch, .slip-type, .meta, .delta, .spark, .rating-row, .stamp, .tear, .barcode, .notice-head,
+.c-date, .c-bal, thead, .dots, .label, .sig { display: none !important; }
+
+/* header: the contact */
+.head {
+  position: sticky; top: 0; z-index: 5; background: rgba(255, 255, 255, .96);
+  display: grid; grid-template-columns: 40px 1fr; column-gap: 12px; align-items: center;
+  padding: 12px 16px; border-bottom: 1px solid var(--line);
+}
+.head::before {
+  content: "ARB"; grid-row: span 2; width: 40px; height: 40px; border-radius: 50%;
+  display: grid; place-items: center; background: var(--ink); color: #fff; font-size: 12px; font-weight: 700; letter-spacing: .04em;
+}
+.logo { font-weight: 650; font-size: 16px; }
+.head::after { content: "Senior Aura Auditor \00B7  online"; font-size: 12px; color: var(--soft); }
+body.is-busy .head::after { content: "typing\2026"; color: var(--green); }
+
+/* disclaimer as the system message at the top of the thread */
+.legal {
+  margin: 14px auto 4px; max-width: 86%; text-align: center; font-size: 12px; color: var(--soft);
+  background: #f6f5f3; border-radius: 10px; padding: 8px 12px;
+}
+.legal-tag { display: block; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; font-size: 10px; margin-bottom: 2px; color: var(--ink); }
+
+/* pinned balance */
+.balance-block {
+  margin: 10px 12px 0; padding: 10px 14px; border: 1px solid var(--line); border-radius: 14px;
+  display: grid; grid-template-columns: 1fr auto; column-gap: 12px; align-items: center;
+}
+.balance-block::before { content: "Pinned \00B7  your balance"; grid-column: 1 / -1; font-size: 11px; color: var(--soft); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 2px; }
+.balance { font-size: 30px; font-weight: 750; letter-spacing: -.02em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.balance small { font-size: 12px; font-weight: 600; margin-left: 5px; color: var(--soft); letter-spacing: .04em; }
+.line { text-align: right; font-size: 13px; font-weight: 650; }
+.line-label { display: none; }
+.vibe { grid-column: 1 / -1; font-size: 13px; color: var(--soft); }
+
+/* history = earlier messages from the auditor, oldest first */
+.history { padding: 8px 12px 0; }
+.section-title { display: block; text-align: center; font-size: 11px; color: var(--soft); text-transform: uppercase; letter-spacing: .08em; margin: 14px 0 8px; }
+#hist-title { font-size: 0; }
+#hist-title::before { content: "Earlier"; font-size: 11px; }
+table, tbody { display: block; }
+tbody { display: flex; flex-direction: column-reverse; gap: 6px; }
+tbody tr { display: block; align-self: flex-start; max-width: 82%; background: var(--in); border-radius: 18px 18px 18px 6px; padding: 8px 12px; }
+tbody td { display: inline; padding: 0; }
+td.amt { font-weight: 700; margin-left: 6px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* the newest verdict is already shown as the reply below; don't repeat it in history */
+.app:has(#notice:not([hidden])) tbody tr:first-child { display: none; }
+.empty { text-align: center; font-size: 13px; color: var(--soft); margin: 4px 0; }
+
+/* the latest exchange */
+.notice { padding: 14px 12px 6px; display: flex; flex-direction: column; gap: 6px; }
+.notice.enter .you-said { animation: pop .25s ease-out both; }
+.notice.enter .verdict { animation: pop .3s .55s ease-out both; }
+@keyframes pop { from { transform: translateY(8px) scale(.96); opacity: 0; } }
+.you-said {
+  align-self: flex-end; max-width: 82%; background: var(--out); color: #fff;
+  border-radius: 18px 18px 6px 18px; padding: 9px 13px; white-space: pre-wrap; word-break: break-word;
+}
+.you-label { display: none; }
+.verdict { align-self: flex-start; max-width: 88%; background: var(--in); border-radius: 18px 18px 18px 6px; padding: 11px 14px 12px; }
+.notice-title { font-weight: 700; font-size: 16px; }
+.amount { font-size: 30px; font-weight: 800; letter-spacing: -.02em; margin: 2px 0 4px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.amount small { font-size: 12px; margin-left: 4px; letter-spacing: .04em; }
+.roast { font-size: 15px; }
+.rec { display: inline-block; margin-top: 10px; font-size: 12px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.rewrite-head { display: flex; justify-content: space-between; align-items: baseline; margin-top: 8px; }
+.sub-label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--soft); margin: 8px 0 4px; }
+.rewrite { margin: 0; background: #fff; border-radius: 12px; padding: 8px 11px; font-size: 14px; }
+.quest { font-size: 14px; }
+.mock-flag { font-size: 11px; color: var(--soft); }
+.linkish { background: none; border: 0; padding: 0; color: var(--soft); font-size: 12px; cursor: pointer; text-decoration: underline; }
+.linkish:hover { color: var(--ink); }
+
+/* composer pinned to the bottom */
+.slip {
+  position: sticky; bottom: 0; z-index: 5; margin-top: auto;
+  background: rgba(255, 255, 255, .97); border-top: 1px solid var(--line); padding: 10px 12px 12px;
+}
+#slip-title, .field-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.examples { order: -1; display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: none; }
+.examples::-webkit-scrollbar { display: none; }
+.ex-label { display: none; }
+.chip {
+  flex: none; background: var(--bg); border: 1px solid var(--line); border-radius: 14px; padding: 5px 11px;
+  font-size: 13px; color: var(--ink); cursor: pointer;
+}
+.chip:hover { border-color: var(--ink); }
+.chip:disabled { opacity: .4; }
+.slip { display: flex; flex-direction: column; }
+textarea {
+  width: 100%; min-height: 64px; max-height: 180px; resize: vertical;
+  font: inherit; color: var(--ink); background: #f6f5f3; border: 1px solid var(--line); border-radius: 20px; padding: 10px 14px;
+}
+textarea:focus { outline: none; border-color: #bdbab3; background: #fff; }
+.under-field { display: flex; justify-content: flex-end; font-size: 11px; color: var(--soft); margin: 3px 6px 0; }
+.under-field .warn { color: var(--red); }
+.actions { display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px; margin-top: 6px; }
+.btn {
+  font: 600 14px/1 system-ui, -apple-system, "Segoe UI", sans-serif; border-radius: 10px; padding: 11px 10px; cursor: pointer;
+  background: var(--bg); color: var(--ink); border: 1px solid var(--line);
+}
+.btn-primary { background: var(--ink); color: #fff; border-color: var(--ink); }
+.btn:hover:not(:disabled) { border-color: var(--ink); }
+.btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn-wrap { display: flex; flex-direction: column; align-items: center; }
+.btn-larp { padding-left: 12px; padding-right: 12px; border-style: dashed; }
+.unavail { font-size: 10px; color: var(--soft); margin-top: 2px; }
+.status { order: -2; font-size: 12px; color: var(--soft); min-height: 0; }
+.status:empty { display: none; }
+.status:not(:empty) { margin-bottom: 6px; }
+.status.err { color: var(--red); }
+
+.foot { padding: 14px 16px 18px; text-align: center; font-size: 11px; color: var(--soft); border-top: 1px solid var(--line); }
+.thanks, .fine { margin-bottom: 4px; }
+
+@media (max-width: 480px) {
+  .app { border: 0; min-height: calc(100vh - 70px); }
+  .actions { grid-template-columns: 1fr 1fr; }
+  .btn-wrap { grid-column: 1 / -1; flex-direction: row; justify-content: center; gap: 8px; }
+}
