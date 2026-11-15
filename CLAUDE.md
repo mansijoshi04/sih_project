@@ -3,9 +3,8 @@
 Hackathon app: a parody "aura bank". Users confess cringe or ask "should I send?"; an AI auditor returns aura points. One page, no DB.
 
 ## Layout
-- `main.py` — FastAPI app. `POST /api/aura`, `GET /api/health`, serves `static/`. Prompts, JSON schema, mock verdicts, and the Anthropic call all live here.
-- `static/index.html` + `static/app.js` — one shared page and script for every design. Balance + history in `localStorage` (key `aura-debt:v1`), always wrapped in try/catch.
-- `static/base.css` — reset + the "Design preview" switcher. `static/themes/*.css` — one file per design; the head script picks one before first paint (key `aura-debt:theme`).
+- `main.py` — FastAPI app. `POST /api/aura`, `GET /api/health`, serves `static/`. Prompts (Gen Alpha voice), JSON schema, mock verdicts, and the Anthropic call all live here.
+- `static/index.html`, `static/style.css`, `static/app.js` — one screen. Balance + history in `localStorage` (key `aura-debt:v1`), always wrapped in try/catch.
 
 ## Run
 ```bash
@@ -20,15 +19,18 @@ Without `ANTHROPIC_API_KEY` the app runs in mock mode (`/api/health` reports `mo
 - The demo must never break: any model error, refusal, or bad JSON falls back to `mock_verdict()`. Keep it that way.
 - API contract (do not change shape without updating `app.js`): `aura_change` int clamped to -10000..5000, `title`, `roast`, `send_verdict` (send mode only), `rewrite` (send mode only), `side_quest` (only when negative), `summary`, plus `source` ("auditor" | "mock").
 - Empty text → 418 "Too Delulu". >1000 chars or bad mode → 422.
+- Voice: deadpan bank official fluent in Gen Alpha slang; roasts are 8-18 words because they play as captions.
 - Tone: roast the situation, never identity. Serious/self-harm input → 0 aura and a kind note.
 
-## Design constraints (don't regress)
-The user is still choosing a direction, so the page has a design switcher. Themes: `wrapped` (default, story slides, page colour follows standing via `body[data-tier]`), `chat` (auditor texts you), `tabloid` (The Aura Times front page), `terminal` ($AURA trading screen), `receipt` (ATM slip; user disliked it, kept for comparison).
-Rejected so far: neobrutalism (chunky borders, stickers, highlighter blocks) and the receipt.
-Every theme must keep the line "Aura balances are not legal tender and cannot be exchanged for rizz." at the top (user loves it).
-Themes restyle the same markup; hide unused elements with `display:none`, use `order`/grid areas and `:has(#notice[hidden])` for layout. JS exposes `body[data-tier]` (collections|cringe|fumble|mid|farmer|him), `body[data-sign]`, `body.is-busy`, a sparkline (#spark), an analyst rating (#rating) and the user's text (#notice-you).
-Avoid: gradients (hard-stop shapes are fine), glassmorphism, blur, glow, drop shadows, purple/indigo, emoji, pill buttons, Inter, hero+cards layouts, icon sets. Must work at 390px; respect prefers-reduced-motion. In CSS `content`, a `\00B7` escape eats one following space, so write two.
-Visual check: headless Edge can't go below 504px wide, so render mobile inside a 390px iframe on the same origin.
+## Design (chosen by the user, don't regress)
+"Aura meter + captions", Gen Alpha. One screen, one thing: a giant aura number centred, tier name under it, a white composer card at the bottom. Nothing busy.
+- Page background IS the standing, flat bright colours via `body[data-tier]`: chopped `#ff4130` (<= -10000), crashout `#ff8a00` (-9999..-3000), fumble `#ff66ad` (-2999..-1), npc `#4fd1ff` (0..2999), farmer `#b8ff3c` (3000..9999), sigma `#ffe14a` (>= 10000). Ink `#111`, white surfaces. Font: Rubik.
+- After a verdict: the roast plays word-by-word as CapCut-style captions (white, thick black stroke, slang words in yellow), the amount slams in, then the number shakes/bounces and counts, then the verdict sheet slides up. Tap or Esc skips. Reduced motion skips the captions.
+- History lives in a "receipts" bottom sheet (Date | Description | Amount | Balance) with "Close account".
+- Keep the line "Aura balances are not legal tender and cannot be exchanged for rizz." at the top (user loves it).
+- Rejected: neobrutalism, receipt/ATM slip, Wrapped/chat/tabloid/terminal (all "too busy"). Prefer minimal + motion.
+- Avoid: gradients, glassmorphism, blur, glow, drop shadows, purple/indigo, emoji, full pill buttons, Inter, icon sets. Must work at 390px.
+- Visual check: headless Edge can't go below 504px wide, so render mobile inside a 390px iframe on the same origin.
 
 ## Deployment
 Target is **Vercel** (Python runtime, zero-config FastAPI: Vercel detects `app` in `main.py`). Set `ANTHROPIC_API_KEY` in the Vercel project's environment variables. Keep paths relative to `Path(__file__).parent`, keep the app stateless (serverless), and don't write to disk at runtime.

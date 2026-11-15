@@ -2,140 +2,99 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Aura Reserve Bank</title>
   <meta name="description" content="Aura Debt: confess your cringe, get audited.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="/static/base.css">
-  <script>
-    // Pick the design before first paint so there is no flash of the wrong theme.
-    (function () {
-      var themes = ["wrapped", "chat", "tabloid", "terminal", "receipt"];
-      var t = null;
-      try { t = localStorage.getItem("aura-debt:theme"); } catch (e) {}
-      if (themes.indexOf(t) < 0) t = themes[0];
-      document.documentElement.dataset.theme = t;
-      document.write('<link rel="stylesheet" id="theme-css" href="/static/themes/' + t + '.css">');
-    })();
-  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:ital,wght@0,400;0,600;0,800;0,900;1,900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
 </head>
-<body>
-  <nav class="theme-switch" aria-label="Design preview">
-    <span class="ts-label">Design preview</span>
-    <div class="ts-tabs" role="tablist">
-      <button type="button" role="tab" data-theme-name="wrapped">Wrapped</button>
-      <button type="button" role="tab" data-theme-name="chat">Group chat</button>
-      <button type="button" role="tab" data-theme-name="tabloid">Tabloid</button>
-      <button type="button" role="tab" data-theme-name="terminal">Terminal</button>
-      <button type="button" role="tab" data-theme-name="receipt">Receipt</button>
-    </div>
-  </nav>
+<body data-tier="npc">
 
-  <main class="app">
+  <header class="top">
+    <span class="brand">Aura Reserve Bank</span>
+    <button type="button" class="ghost" id="open-receipts" aria-haspopup="dialog">receipts <span class="count" id="tx-count"></span></button>
+  </header>
+  <p class="legal">Aura balances are not legal tender and cannot be exchanged for rizz.</p>
 
-    <p class="legal">
-      <span class="legal-tag">Important</span>
-      <span class="legal-text">Aura balances are not legal tender and cannot be exchanged for rizz.</span>
-    </p>
-
-    <header class="head">
-      <h1 class="logo">Aura Reserve Bank</h1>
-      <p class="branch">Branch 069 &middot; Main Character Ave</p>
-      <p class="slip-type">Statement of Account</p>
-      <dl class="meta">
-        <div><dt>Date</dt><dd id="stmt-date">——</dd></div>
-        <div><dt>Acct</dt><dd id="acct-no">——</dd></div>
-        <div><dt>Type</dt><dd>Personal Aura (Chq)</dd></div>
-        <div><dt>Terminal</dt><dd>ATM-0420</dd></div>
-      </dl>
-    </header>
-
-    <section class="balance-block" aria-live="polite">
-      <p class="label">Available aura</p>
+  <main class="stage">
+    <section class="meter" aria-live="polite">
+      <p class="meter-label">your aura</p>
       <p class="balance" id="balance">0</p>
-      <p class="delta" id="delta"></p>
-      <svg class="spark" id="spark" viewBox="0 0 100 32" preserveAspectRatio="none" aria-hidden="true">
-        <line class="spark-zero" id="spark-zero" x1="0" x2="100" y1="16" y2="16"></line>
-        <polyline class="spark-line" id="spark-line" points=""></polyline>
-      </svg>
-      <p class="line"><span class="line-label">Standing</span><span class="dots"></span><span class="standing" id="standing">Mid</span></p>
-      <p class="rating-row"><span class="line-label">Analyst rating</span><span class="dots"></span><span class="rating" id="rating">HOLD</span></p>
+      <p class="tier" id="standing">NPC</p>
       <p class="vibe" id="vibe"></p>
-      <div class="stamp" id="stamp" hidden>Overdrawn</div>
+      <span class="stamp" id="stamp" hidden>Overdrawn</span>
     </section>
 
-    <section class="slip" aria-labelledby="slip-title">
-      <h2 class="section-title" id="slip-title">New transaction</h2>
-      <label class="field-label" for="entry">
-        Confess the incident, or paste the text you&rsquo;re about to send. Add context, the auditor is nosy.
-      </label>
-      <textarea id="entry" maxlength="1000" rows="4"></textarea>
-      <div class="under-field"><span id="counter">0 / 1000</span></div>
-      <div class="examples">
-        <span class="ex-label">Try:</span>
-        <button type="button" class="chip" data-mode="confess" data-text="I said &quot;you too&quot; when the waiter told me to enjoy my meal.">the waiter</button>
-        <button type="button" class="chip" data-mode="confess" data-text="I waved back at someone who was waving at the person behind me. Then I pretended to fix my hair.">the wave</button>
-        <button type="button" class="chip" data-mode="send" data-text="Context: we went on one date 3 weeks ago and she left me on delivered. Message: &quot;hey so i was just wondering if u ever got my last message lol&quot;">the follow-up</button>
-        <button type="button" class="chip" data-mode="send" data-text="Context: group project, nobody has done anything and it's due tomorrow. Message: &quot;ok i'm doing the slides tonight, send me your bits by 9 or i'm writing them myself&quot;">group chat</button>
+    <section class="composer" aria-label="New transaction">
+      <label class="sr-only" for="entry">Confess the incident, or paste the text you're about to send</label>
+      <textarea id="entry" rows="2" maxlength="1000"></textarea>
+      <div class="composer-row">
+        <div class="chips">
+          <button type="button" class="chip" data-mode="confess" data-text="I said &quot;you too&quot; when the waiter told me to enjoy my meal.">the waiter</button>
+          <button type="button" class="chip" data-mode="confess" data-text="I waved back at someone who was waving at the person behind me. Then I pretended to fix my hair.">the wave</button>
+          <button type="button" class="chip" data-mode="send" data-text="Context: we went on one date 3 weeks ago and she left me on delivered. Message: &quot;hey so i was just wondering if u ever got my last message lol&quot;">the follow-up</button>
+        </div>
+        <span class="counter" id="counter">0/1000</span>
       </div>
       <div class="actions">
         <button type="button" class="btn btn-primary" data-mode="confess">Confess</button>
         <button type="button" class="btn" data-mode="send">Should I send?</button>
-        <span class="btn-wrap">
-          <button type="button" class="btn btn-larp" disabled>LARP check</button>
-          <small class="unavail">Service available Q3</small>
+        <span class="larp">
+          <button type="button" class="btn" disabled>LARP check</button>
+          <small>Service available Q3</small>
         </span>
       </div>
       <p class="status" id="status" role="status"></p>
     </section>
+  </main>
 
-    <section class="notice" id="notice" hidden aria-live="polite">
-      <p class="tear" aria-hidden="true">tear here</p>
-      <div class="notice-head">
-        <span class="notice-kicker">Auditor&rsquo;s notice</span>
-        <span id="notice-ref"></span>
-      </div>
-      <p class="you-said"><span class="you-label">You</span><span id="notice-you"></span></p>
-      <div class="verdict">
-        <div class="stamp notice-stamp" id="notice-stamp"></div>
-        <h3 class="notice-title" id="notice-title"></h3>
-        <p class="amount" id="notice-amount"></p>
-        <p class="roast" id="notice-roast"></p>
-        <div class="send-block" id="notice-send" hidden>
-          <p class="rec" id="notice-rec"></p>
-          <div class="rewrite-head">
-            <p class="sub-label">Higher-aura rewrite</p>
-            <button type="button" class="linkish" id="copy-rewrite">copy</button>
-          </div>
-          <blockquote class="rewrite" id="notice-rewrite"></blockquote>
-        </div>
-        <div class="quest-block" id="notice-quest" hidden>
-          <p class="sub-label">Repayment plan</p>
-          <p class="quest" id="notice-quest-text"></p>
-        </div>
-        <p class="sig">&mdash; Office of the Senior Aura Auditor <span class="mock-flag" id="notice-src"></span></p>
-      </div>
-    </section>
+  <!-- the verdict plays here as captions first -->
+  <div class="captions" id="captions" hidden>
+    <p class="cap-line" id="cap-line"></p>
+    <p class="cap-amount" id="cap-amount"></p>
+    <p class="cap-skip">tap to skip</p>
+  </div>
 
-    <section class="history" aria-labelledby="hist-title">
-      <h2 class="section-title" id="hist-title">Transactions</h2>
+  <!-- then lands here -->
+  <div class="scrim" id="scrim" hidden></div>
+  <section class="sheet" id="notice" hidden role="dialog" aria-modal="true" aria-labelledby="notice-title">
+    <p class="kicker">Auditor&rsquo;s notice <span id="notice-ref"></span></p>
+    <h2 class="notice-title" id="notice-title"></h2>
+    <p class="amount" id="notice-amount"></p>
+    <p class="roast" id="notice-roast"></p>
+    <div class="block" id="notice-send" hidden>
+      <p class="rec" id="notice-rec"></p>
+      <div class="sub-row">
+        <p class="sub">Higher-aura rewrite</p>
+        <button type="button" class="tiny" id="copy-rewrite">copy</button>
+      </div>
+      <blockquote class="rewrite" id="notice-rewrite"></blockquote>
+    </div>
+    <div class="block" id="notice-quest" hidden>
+      <p class="sub">Repayment plan &middot; side quest</p>
+      <p class="quest" id="notice-quest-text"></p>
+    </div>
+    <p class="src" id="notice-src"></p>
+    <button type="button" class="btn btn-primary wide" id="close-notice">bet</button>
+  </section>
+
+  <section class="sheet drawer" id="receipts" hidden role="dialog" aria-modal="true" aria-labelledby="receipts-title">
+    <div class="drawer-head">
+      <h2 id="receipts-title">Receipts</h2>
+      <button type="button" class="tiny" id="close-receipts">close</button>
+    </div>
+    <div class="table-wrap">
       <table>
-        <thead>
-          <tr><th class="c-date">Date</th><th class="c-desc">Description</th><th class="num">Amt</th><th class="num c-bal">Bal</th></tr>
-        </thead>
+        <thead><tr><th class="c-date">Date</th><th>Description</th><th class="num">Amount</th><th class="num">Balance</th></tr></thead>
         <tbody id="history"></tbody>
       </table>
-      <p class="empty" id="empty">No transactions this period. Suspiciously quiet.</p>
-    </section>
+    </div>
+    <p class="empty" id="empty">No transactions yet. Suspiciously quiet.</p>
+    <button type="button" class="tiny danger" id="reset">Close account</button>
+  </section>
 
-    <footer class="foot">
-      <div class="barcode" id="barcode" aria-hidden="true"></div>
-      <p class="thanks">Thank you for banking with us. Please touch grass.</p>
-      <p class="fine">The Aura Reserve Bank is a parody. Not insured by the Federal Vibe Insurance Corp.</p>
-      <button type="button" class="linkish" id="reset">Close account</button>
-    </footer>
-  </main>
   <script src="/static/app.js"></script>
 </body>
 </html>

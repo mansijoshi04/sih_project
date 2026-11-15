@@ -2,136 +2,92 @@
   "use strict";
 
   const STORE_KEY = "aura-debt:v1";
-  const THEME_KEY = "aura-debt:theme";
   const $ = (id) => document.getElementById(id);
-
   const els = {
-    acctNo: $("acct-no"), stmtDate: $("stmt-date"),
-    balance: $("balance"), delta: $("delta"), sparkLine: $("spark-line"), sparkZero: $("spark-zero"),
-    standing: $("standing"), rating: $("rating"), vibe: $("vibe"), stamp: $("stamp"),
-    entry: $("entry"), counter: $("counter"), status: $("status"),
-    notice: $("notice"), noticeRef: $("notice-ref"), noticeYou: $("notice-you"), noticeStamp: $("notice-stamp"),
-    noticeTitle: $("notice-title"), noticeAmount: $("notice-amount"), noticeRoast: $("notice-roast"),
+    balance: $("balance"), standing: $("standing"), vibe: $("vibe"), stamp: $("stamp"),
+    entry: $("entry"), counter: $("counter"), status: $("status"), txCount: $("tx-count"),
+    captions: $("captions"), capLine: $("cap-line"), capAmount: $("cap-amount"),
+    scrim: $("scrim"), notice: $("notice"), noticeRef: $("notice-ref"), noticeTitle: $("notice-title"),
+    noticeAmount: $("notice-amount"), noticeRoast: $("notice-roast"),
     noticeSend: $("notice-send"), noticeRec: $("notice-rec"), noticeRewrite: $("notice-rewrite"), copyRewrite: $("copy-rewrite"),
-    noticeQuest: $("notice-quest"), noticeQuestText: $("notice-quest-text"), noticeSrc: $("notice-src"),
-    history: $("history"), empty: $("empty"), reset: $("reset"), barcode: $("barcode"),
+    noticeQuest: $("notice-quest"), noticeQuestText: $("notice-quest-text"), noticeSrc: $("notice-src"), closeNotice: $("close-notice"),
+    receipts: $("receipts"), openReceipts: $("open-receipts"), closeReceipts: $("close-receipts"),
+    history: $("history"), empty: $("empty"), reset: $("reset"),
   };
   const actionButtons = Array.from(document.querySelectorAll(".btn[data-mode]"));
   const chips = Array.from(document.querySelectorAll(".chip"));
-  const themeTabs = Array.from(document.querySelectorAll("[data-theme-name]"));
+  const reduceMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
   // ---------- storage (never trust it to exist) ----------
-  const tryGet = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
-  const trySet = (k, v) => { try { localStorage.setItem(k, v); } catch { /* private mode */ } };
-
-  function freshState() {
-    const n = () => String(Math.floor(1000 + Math.random() * 9000));
-    return { balance: 0, history: [], account: `ARB-${n()}-${n()}-${n().slice(0, 2)}` };
-  }
+  function freshState() { return { balance: 0, history: [] }; }
   function load() {
     try {
-      const s = JSON.parse(tryGet(STORE_KEY) || "null");
+      const s = JSON.parse(localStorage.getItem(STORE_KEY) || "null");
       if (!s || typeof s.balance !== "number" || !Array.isArray(s.history)) return freshState();
       return { ...freshState(), ...s };
     } catch { return freshState(); }
   }
-  const save = () => trySet(STORE_KEY, JSON.stringify(state));
+  function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch { /* private mode */ } }
 
   let state = load();
   let displayed = state.balance;
 
-  // ---------- formatting ----------
+  // ---------- copy ----------
   const nf = new Intl.NumberFormat("en-US");
   const MINUS = "−";
   const fmt = (n) => (n < 0 ? MINUS : "") + nf.format(Math.abs(Math.round(n)));
   const fmtSigned = (n) => (n > 0 ? "+" : n < 0 ? MINUS : "") + nf.format(Math.abs(n));
-  const shortDate = (d) => d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" }).toUpperCase();
+  const shortDate = (d) => d.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
-  const maskAcct = (a) => a.replace(/^ARB-\d{4}-\d{4}/, "****-****");
 
   const TIERS = [
-    { max: -10000, key: "collections", name: "In Collections", rating: "Delisted", vibe: "they know where u live" },
-    { max: -3000, key: "cringe", name: "Generational Cringe", rating: "Strong sell", vibe: "ur grandkids will feel this" },
-    { max: -1, key: "fumble", name: "Minor Fumble Era", rating: "Sell", vibe: "recoverable. barely." },
-    { max: 2999, key: "mid", name: "Mid", rating: "Hold", vibe: "neither seen nor perceived" },
-    { max: 9999, key: "farmer", name: "Aura Farmer", rating: "Buy", vibe: "lowkey ate" },
-    { max: Infinity, key: "him", name: "Him/Her", rating: "Strong buy", vibe: "main character, certified" },
+    { max: -10000, key: "chopped", name: "Chopped", vibe: "fully cooked. no return." },
+    { max: -3000, key: "crashout", name: "Crashout Era", vibe: "a crashout of historic proportions" },
+    { max: -1, key: "fumble", name: "Fumble Arc", vibe: "recoverable. barely." },
+    { max: 2999, key: "npc", name: "NPC", vibe: "default skin energy" },
+    { max: 9999, key: "farmer", name: "Aura Farmer", vibe: "aura farming detected" },
+    { max: Infinity, key: "sigma", name: "Sigma", vibe: "unbothered. moisturised. him." },
   ];
   const tier = (b) => TIERS.find((t) => b <= t.max);
 
   const PLACEHOLDERS = [
-    "e.g. I said \"love you\" to my manager at the end of a Teams call.",
-    "e.g. I liked her post from 2019 at 3am. While deep-scrolling. On main.",
-    "e.g. paste the text you're about to send and let the bank decide.",
-    "e.g. I walked into a glass door at the open day. The door won.",
+    "spill it. what did you do?",
+    "i said \"love you\" to my teacher...",
+    "paste the text you're about to send",
+    "i walked into a glass door. the door won.",
   ];
   const LOADING = [
     "Auditor reviewing your account…",
-    "Consulting the group chat…",
-    "Checking the receipts…",
-    "Running a background vibe check…",
-    "Escalating to the council…",
+    "checking the group chat…",
+    "consulting the sigma council…",
+    "running a vibe check…",
+    "calculating fanum tax…",
   ];
-
-  // ---------- theme switcher ----------
-  function applyTheme(name) {
-    const link = $("theme-css");
-    if (link) link.href = `/static/themes/${name}.css`;
-    document.documentElement.dataset.theme = name;
-    themeTabs.forEach((t) => t.setAttribute("aria-selected", String(t.dataset.themeName === name)));
-    trySet(THEME_KEY, name);
-  }
-  themeTabs.forEach((t) => t.addEventListener("click", () => applyTheme(t.dataset.themeName)));
-  themeTabs.forEach((t) => t.setAttribute("aria-selected", String(t.dataset.themeName === document.documentElement.dataset.theme)));
+  const HOT = /^(aura|cooked|chopped|crashout|sigma|npc|fanum|glazing|rizz|delulu|fumble|fumbled|mewing|him|her|ate|cringe)[.,!?]*$/i;
 
   // ---------- render ----------
   function paintBalance(value) {
     els.balance.textContent = fmt(value);
-    const unit = document.createElement("small");
-    unit.textContent = "AURA";
-    els.balance.append(unit);
-    els.balance.classList.toggle("neg", value < 0);
-    els.balance.classList.toggle("pos", value > 0);
   }
 
   function renderStanding(animate = false) {
     const b = state.balance;
     const t = tier(b);
     document.body.dataset.tier = t.key;
-    document.body.dataset.sign = b < 0 ? "neg" : b > 0 ? "pos" : "zero";
     els.standing.textContent = t.name;
-    els.standing.className = `standing${b < 0 ? " neg" : b >= 3000 ? " pos" : ""}`;
-    els.rating.textContent = t.rating;
-    els.rating.className = `rating${b < 0 ? " neg" : b >= 3000 ? " pos" : ""}`;
     els.vibe.textContent = t.vibe;
-
-    const last = state.history[0];
-    els.delta.textContent = last ? `${fmtSigned(last.amount)} last txn` : "no trades yet";
-    els.delta.className = `delta${last ? (last.amount < 0 ? " neg" : " pos") : ""}`;
+    els.txCount.textContent = state.history.length ? String(state.history.length) : "";
 
     const wasHidden = els.stamp.hidden;
     if (b < 0) {
       const collections = b <= -10000;
       els.stamp.hidden = false;
-      els.stamp.textContent = collections ? "Sent to Collections" : "Overdrawn";
-      els.stamp.classList.toggle("big", collections);
+      els.stamp.textContent = collections ? "Sent to collections" : "Overdrawn";
       if (animate && (wasHidden || collections)) restartAnim(els.stamp, "pop");
     } else {
       els.stamp.hidden = true;
     }
-    drawSpark();
-  }
-
-  function drawSpark() {
-    const points = [0, ...state.history.slice().reverse().map((t) => t.balance)];
-    const min = Math.min(0, ...points), max = Math.max(0, ...points);
-    const span = max - min || 1;
-    const y = (v) => (32 - ((v - min) / span) * 28 - 2).toFixed(2);
-    const step = points.length > 1 ? 100 / (points.length - 1) : 100;
-    const pts = points.length > 1 ? points.map((v, i) => `${(i * step).toFixed(2)},${y(v)}`) : [`0,${y(0)}`, `100,${y(0)}`];
-    els.sparkLine.setAttribute("points", pts.join(" "));
-    els.sparkZero.setAttribute("y1", y(0));
-    els.sparkZero.setAttribute("y2", y(0));
   }
 
   function restartAnim(el, cls) {
@@ -145,9 +101,8 @@
     cancelAnimationFrame(animId);
     const start = displayed;
     const delta = target - start;
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (!delta || reduce) { displayed = target; paintBalance(target); return; }
-    const dur = Math.min(1400, 500 + Math.abs(delta) / 10);
+    if (!delta || reduceMotion()) { displayed = target; paintBalance(target); return; }
+    const dur = Math.min(1300, 500 + Math.abs(delta) / 10);
     const t0 = performance.now();
     const step = (now) => {
       const p = Math.min(1, (now - t0) / dur);
@@ -164,16 +119,15 @@
     els.empty.hidden = state.history.length > 0;
     for (const tx of state.history) {
       const tr = document.createElement("tr");
-      tr.className = tx.amount < 0 ? "row-neg" : "row-pos";
       const cells = [
         ["c-date", shortDate(new Date(tx.ts))],
-        ["c-desc", tx.summary],
+        ["", tx.summary],
         [`amt ${tx.amount < 0 ? "neg" : "pos"}`, fmtSigned(tx.amount)],
-        [`amt c-bal ${tx.balance < 0 ? "neg" : ""}`, fmt(tx.balance)],
+        [`amt ${tx.balance < 0 ? "neg" : ""}`, fmt(tx.balance)],
       ];
       for (const [cls, text] of cells) {
         const td = document.createElement("td");
-        td.className = cls;
+        if (cls) td.className = cls;
         td.textContent = text;
         tr.appendChild(td);
       }
@@ -181,23 +135,19 @@
     }
   }
 
-  function renderNotice(r, mode, text) {
+  function fillNotice(r, mode) {
     const amt = r.aura_change;
-    els.noticeRef.textContent = `Ref. ${String(state.history.length).padStart(4, "0")}`;
-    els.noticeYou.textContent = text.length > 240 ? `${text.slice(0, 240)}…` : text;
+    els.noticeRef.textContent = `#${String(state.history.length).padStart(4, "0")}`;
     els.noticeTitle.textContent = r.title;
-    els.noticeAmount.textContent = fmtSigned(amt);
+    els.noticeAmount.textContent = `${fmtSigned(amt)}`;
     const unit = document.createElement("small");
     unit.textContent = "AURA";
     els.noticeAmount.append(unit);
     els.noticeAmount.className = `amount ${amt < 0 ? "neg" : "pos"}`;
     els.noticeRoast.textContent = r.roast;
-    els.notice.dataset.sign = amt < 0 ? "neg" : "pos";
 
-    let stampText;
     if (mode === "send" && r.send_verdict) {
       const ok = r.send_verdict === "SEND";
-      stampText = ok ? "Approved" : "Declined";
       els.noticeSend.hidden = false;
       els.noticeRec.textContent = `Recommendation: ${r.send_verdict}`;
       els.noticeRec.className = `rec ${ok ? "pos" : "neg"}`;
@@ -205,32 +155,78 @@
       els.copyRewrite.hidden = !r.rewrite;
       els.copyRewrite.textContent = "copy";
     } else {
-      stampText = amt < 0 ? "Debited" : "Credited";
       els.noticeSend.hidden = true;
     }
-    els.noticeStamp.textContent = stampText;
-    els.noticeStamp.classList.toggle("ok", stampText === "Approved" || stampText === "Credited");
-
     els.noticeQuest.hidden = !(amt < 0 && r.side_quest);
     els.noticeQuestText.textContent = r.side_quest || "";
-    els.noticeSrc.textContent = r.source === "mock" ? "[backup ledger]" : "";
-    els.notice.hidden = false;
-    restartAnim(els.notice, "enter");
-    restartAnim(els.noticeStamp, "pop");
+    els.noticeSrc.textContent = r.source === "mock" ? "Verdict from the backup ledger (offline mode)." : "";
   }
 
-  function drawBarcode() {
-    let seed = 0;
-    for (const ch of state.account) seed = (seed * 31 + ch.charCodeAt(0)) >>> 0;
-    const rand = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
-    els.barcode.replaceChildren();
-    for (let i = 0; i < 46; i++) {
-      const bar = document.createElement("span");
-      bar.style.width = `${1 + Math.floor(rand() * 3)}px`;
-      bar.style.marginRight = `${1 + Math.floor(rand() * 3)}px`;
-      els.barcode.appendChild(bar);
-    }
+  // ---------- sheets ----------
+  let lastFocus = null;
+  function openSheet(sheet, focusEl) {
+    lastFocus = document.activeElement;
+    els.scrim.hidden = false;
+    sheet.hidden = false;
+    (focusEl || sheet).focus({ preventScroll: true });
   }
+  function closeSheets() {
+    els.notice.hidden = true;
+    els.receipts.hidden = true;
+    els.scrim.hidden = true;
+    if (lastFocus && lastFocus.focus) lastFocus.focus({ preventScroll: true });
+  }
+
+  // ---------- captions ----------
+  function chunk(text) {
+    const words = text.trim().split(/\s+/);
+    const out = [];
+    let cur = [];
+    for (const w of words) {
+      cur.push(w);
+      if (cur.length === 3 || cur.join(" ").length > 15 || /[.!?;:]$/.test(w)) { out.push(cur); cur = []; }
+    }
+    if (cur.length) out.push(cur);
+    return out;
+  }
+  function showChunk(words) {
+    els.capLine.replaceChildren();
+    words.forEach((w, i) => {
+      const span = document.createElement("span");
+      span.textContent = w;
+      if (HOT.test(w)) span.className = "hot";
+      els.capLine.append(span);
+      if (i < words.length - 1) els.capLine.append(" ");
+    });
+    restartAnim(els.capLine, "pop");
+  }
+
+  let skip = null;
+  async function playCaptions(r) {
+    if (reduceMotion()) return;
+    let skipped = false;
+    const skipped$ = new Promise((res) => { skip = () => { skipped = true; res(); }; });
+    const step = (ms) => Promise.race([wait(ms), skipped$]);
+
+    els.capAmount.textContent = "";
+    document.body.classList.add("capping");
+    els.captions.hidden = false;
+    for (const words of chunk(r.roast)) {
+      if (skipped) break;
+      showChunk(words);
+      await step(300 + words.length * 140);
+    }
+    if (!skipped) {
+      els.capLine.textContent = "";
+      els.capAmount.textContent = `${fmtSigned(r.aura_change)} aura`;
+      restartAnim(els.capAmount, "slam");
+      await step(1100);
+    }
+    els.captions.hidden = true;
+    document.body.classList.remove("capping");
+    skip = null;
+  }
+  els.captions.addEventListener("click", () => skip && skip());
 
   // ---------- actions ----------
   let loadingTimer = 0;
@@ -238,7 +234,6 @@
     actionButtons.forEach((b) => (b.disabled = busy));
     chips.forEach((c) => (c.disabled = busy));
     els.entry.readOnly = busy;
-    document.body.classList.toggle("is-busy", busy);
     clearInterval(loadingTimer);
     els.status.className = busy ? "status busy" : "status";
     if (busy) {
@@ -259,39 +254,47 @@
       return;
     }
     setBusy(true);
+    let data;
     try {
       const res = await fetch("/api/aura", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mode, text }),
       });
-      const data = await res.json().catch(() => ({}));
+      data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.detail || `Teller error ${res.status}`);
-
-      const amount = Math.round(Number(data.aura_change) || 0);
-      state.balance += amount;
-      state.history.unshift({ ts: Date.now(), summary: data.summary || "Unlabelled transaction", amount, balance: state.balance });
-      state.history = state.history.slice(0, 200);
-      save();
-
-      setBusy(false);
-      renderNotice({ ...data, aura_change: amount }, mode, text);
-      renderHistory();
-      renderStanding(true);
-      animateTo(state.balance);
-      els.entry.value = "";
-      updateCounter();
-      els.notice.scrollIntoView({ behavior: "smooth", block: "nearest" });
     } catch (err) {
       setBusy(false);
       els.status.className = "status err";
       els.status.textContent = `Transaction declined: ${err.message}`;
+      return;
     }
+
+    const amount = Math.round(Number(data.aura_change) || 0);
+    const verdict = { ...data, aura_change: amount, roast: data.roast || "No comment." };
+    state.balance += amount;
+    state.history.unshift({ ts: Date.now(), summary: data.summary || "Unlabelled transaction", amount, balance: state.balance });
+    state.history = state.history.slice(0, 200);
+    save();
+
+    setBusy(false);
+    els.entry.value = "";
+    updateCounter();
+    fillNotice(verdict, mode);
+    renderHistory();
+
+    await playCaptions(verdict);
+
+    renderStanding(true);
+    animateTo(state.balance);
+    restartAnim(els.balance, amount < 0 ? "shake" : "bounce");
+    if (!reduceMotion()) await wait(900);
+    openSheet(els.notice, els.closeNotice);
   }
 
   function updateCounter() {
     const len = els.entry.value.length;
-    els.counter.textContent = `${len} / 1000`;
+    els.counter.textContent = `${len}/1000`;
     els.counter.classList.toggle("warn", len > 900);
   }
 
@@ -301,7 +304,7 @@
     updateCounter();
     els.entry.focus();
     els.status.className = "status";
-    els.status.textContent = c.dataset.mode === "send" ? "Loaded. Hit SHOULD I SEND?" : "Loaded. Hit CONFESS.";
+    els.status.textContent = c.dataset.mode === "send" ? "loaded. hit SHOULD I SEND?" : "loaded. hit CONFESS.";
   }));
   els.entry.addEventListener("input", updateCounter);
   els.entry.addEventListener("keydown", (e) => {
@@ -315,25 +318,27 @@
       els.copyRewrite.textContent = "copy failed";
     }
   });
+  els.closeNotice.addEventListener("click", closeSheets);
+  els.scrim.addEventListener("click", closeSheets);
+  els.openReceipts.addEventListener("click", () => { renderHistory(); openSheet(els.receipts, els.closeReceipts); });
+  els.closeReceipts.addEventListener("click", closeSheets);
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    if (skip) skip();
+    else closeSheets();
+  });
   els.reset.addEventListener("click", () => {
-    if (!confirm("Close this account? All aura history will be shredded.")) return;
+    if (!confirm("Close this account? All aura history will be deleted.")) return;
     state = freshState();
     save();
-    els.notice.hidden = true;
-    els.acctNo.textContent = maskAcct(state.account);
-    drawBarcode();
+    closeSheets();
     renderHistory();
     renderStanding();
     animateTo(0);
   });
 
   // ---------- init ----------
-  els.acctNo.textContent = maskAcct(state.account);
-  const now = new Date();
-  els.stmtDate.textContent = `${shortDate(now)} ${now.toTimeString().slice(0, 5)}`;
   els.entry.placeholder = pick(PLACEHOLDERS);
-  drawBarcode();
-  save();
   paintBalance(state.balance);
   renderStanding();
   renderHistory();
