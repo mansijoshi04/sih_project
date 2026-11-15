@@ -183,7 +183,7 @@ textarea:focus { outline: none; background: #22222a; }
 textarea::placeholder { color: var(--dim); }
 textarea.nope { animation: shake .4s steps(8) both; border-color: var(--pink); }
 /* LARP check: paperclip + screenshot thumbnail inside the box */
-body.larp-on textarea { padding-right: 52px; }
+textarea { padding-right: 52px; }
 body.has-shot textarea { padding-right: 88px; }
 .attach { position: absolute; right: 8px; top: 8px; width: 36px; height: 36px; padding: 5px; border: 0; border-radius: 8px; background: transparent; color: var(--soft); cursor: pointer; transition: transform .14s var(--pop); }
 .attach svg { display: block; width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; filter: url(#boil-s); }

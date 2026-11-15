@@ -461,7 +461,7 @@
     });
   }
   async function attachShot(file) {
-    if (!larpOn || busy || !els.verdict.hidden || !file || !/^image\//.test(file.type)) return;
+    if (busy || !els.verdict.hidden || !file || !/^image\//.test(file.type)) return;
     try { shot = await shrinkImage(file); } catch { judgeSays("that file is not a picture. the Bureau only reads pictures."); sfx.error(); return; }
     els.shotImg.src = shot;
     els.shot.hidden = false;
@@ -471,13 +471,13 @@
     sfx.pop();
     setJudge("typing");
     look(4, 5);
-    judgeSays("screenshot received. hit LARP CHECK.");
+    judgeSays(larpOn ? "screenshot received. confess, send or LARP check?" : "screenshot received. confess it or ask if you should send?");
   }
   function clearShot() {
     shot = null;
     els.shot.hidden = true;
     els.shotImg.removeAttribute("src");
-    els.attach.hidden = !larpOn;
+    els.attach.hidden = false;
     els.shotFile.value = "";
     document.body.classList.remove("has-shot");
   }
@@ -486,14 +486,14 @@
   els.shotX.addEventListener("click", () => { clearShot(); reactToTyping(); els.entry.focus(); });
   document.addEventListener("paste", (e) => {
     const item = Array.from(e.clipboardData?.items || []).find((i) => i.kind === "file" && i.type.startsWith("image/"));
-    if (item && larpOn) { e.preventDefault(); attachShot(item.getAsFile()); }
+    if (item) { e.preventDefault(); attachShot(item.getAsFile()); }
   });
-  els.desk.addEventListener("dragover", (e) => { if (larpOn) { e.preventDefault(); els.desk.classList.add("drop"); } });
+  els.desk.addEventListener("dragover", (e) => { e.preventDefault(); els.desk.classList.add("drop"); });
   els.desk.addEventListener("dragleave", () => els.desk.classList.remove("drop"));
   els.desk.addEventListener("drop", (e) => {
     els.desk.classList.remove("drop");
     const f = e.dataTransfer?.files?.[0];
-    if (f && larpOn) { e.preventDefault(); attachShot(f); }
+    if (f) { e.preventDefault(); attachShot(f); }
   });
   els.plat.addEventListener("click", () => {
     const x = els.plat.dataset.p === "linkedin";
@@ -713,14 +713,8 @@
 
   async function submit(mode) {
     const text = els.entry.value.trim();
-    if (!text && shot && mode !== "larp") {
-      judgeSays("screenshots go through LARP CHECK.");
-      restartAnim(els.larpBtn, "nope");
-      sfx.error();
-      return;
-    }
-    if (!text && !(mode === "larp" && shot)) {
-      judgeSays(mode === "larp" ? "418 Too Delulu. paste the post or drop a screenshot." : "418 Too Delulu. type what you did first.");
+    if (!text && !shot) {
+      judgeSays(mode === "larp" ? "418 Too Delulu. paste the post or drop a screenshot." : "418 Too Delulu. type what you did, or paste a screenshot.");
       restartAnim(els.entry, "nope");
       sfx.error();
       els.entry.focus();
@@ -734,7 +728,7 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(mode === "larp"
           ? { text, image: shot || undefined, username: els.handle.value.trim().replace(/^@/, "") || undefined, platform: els.plat.dataset.p }
-          : { mode, text }),
+          : { mode, text, image: shot || undefined }),
       });
       data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.detail || `Teller error ${res.status}`);
@@ -756,7 +750,8 @@
 
     setBusy(false);
     els.entry.value = "";
-    if (mode === "larp") { clearShot(); els.handle.value = ""; }
+    clearShot();
+    if (mode === "larp") els.handle.value = "";
     updateCounter();
     renderHistory();
 
@@ -830,7 +825,6 @@
     els.larpBtn.classList.add("on");
     els.larpNote.textContent = "";
     els.larpBtn.title = "Is this post a LARP? (paste text or a screenshot)";
-    els.attach.hidden = !!shot;
     document.querySelectorAll(".larp-only").forEach((x) => { x.hidden = false; });
     document.body.classList.add("larp-on");
   }).catch(() => { /* stays locked */ });
