@@ -34,6 +34,14 @@
           <path class="mute" d="M23 12 L29 20 M29 12 L23 20"/>
         </svg>
       </button>
+      <button type="button" class="icon" id="open-wanted" aria-haspopup="dialog" aria-label="Most Wanted" title="Most Wanted">
+        <svg viewBox="0 0 32 32" aria-hidden="true">
+          <path d="M6 6 L26 5 L27 28 L5 27 Z"/>
+          <path d="M12.5 14 C12 10 20 10 19.5 14 C19.5 18 12.5 18 12.5 14 Z"/>
+          <path d="M9 24 C10 19 22 19 23 24"/>
+          <circle cx="16" cy="5" r="1.6"/>
+        </svg>
+      </button>
       <button type="button" class="icon" id="open-receipts" aria-haspopup="dialog" aria-label="Receipts" title="Receipts">
         <svg viewBox="0 0 32 32" aria-hidden="true">
           <path d="M8 4 L24 5 L25 27 L21 24 L17 28 L13 24 L8 27 Z"/>
@@ -166,12 +174,27 @@
         <label class="sr-only" for="entry">Type what you did, or paste a text you're scared to send</label>
         <textarea id="entry" rows="2" maxlength="1000" placeholder="what did you do?"></textarea>
         <span class="counter" id="counter" hidden></span>
+        <!-- LARP check: a screenshot of the post (attach, paste or drop), only when the Bureau is online -->
+        <button type="button" class="attach" id="attach" hidden aria-label="Attach a screenshot of the post" title="Attach a screenshot (or paste one)">
+          <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M21 9 L12 19 C10 21 12 24 14 22 L24 11 C27 8 23 3 20 6 L9 18 C6 22 11 27 15 24 L23 15"/></svg>
+        </button>
+        <div class="shot" id="shot" hidden>
+          <img id="shot-img" alt="Attached screenshot">
+          <button type="button" class="shot-x" id="shot-x" aria-label="Remove screenshot">&times;</button>
+        </div>
+        <input type="file" id="shot-file" accept="image/*" hidden>
       </div>
       <div class="chips">
         <span class="chips-label">try:</span>
         <button type="button" class="chip" data-mode="confess" data-text="I said &quot;you too&quot; when the waiter told me to enjoy my meal.">the waiter</button>
         <button type="button" class="chip" data-mode="confess" data-text="I waved back at someone who was waving at the person behind me. Then I pretended to fix my hair.">the wave</button>
         <button type="button" class="chip" data-mode="send" data-text="Context: we went on one date 3 weeks ago and she left me on delivered. Message: &quot;hey so i was just wondering if u ever got my last message lol&quot;">the follow-up</button>
+        <button type="button" class="chip larp-only" data-mode="larp" data-handle="demo_hustlebro" data-text="Thrilled to announce we hit $10M ARR in 3 months. Still in stealth. Grateful for the grind, the 4am wake-ups and my cold plunge. Agree?" hidden>the founder</button>
+        <span class="who-posted larp-only" id="who-posted" hidden>
+          <label class="sr-only" for="handle">Who posted it? (for LARP check)</label>
+          <input id="handle" maxlength="60" placeholder="@who posted it?" autocomplete="off" spellcheck="false">
+          <button type="button" class="plat" id="plat" data-p="linkedin" aria-label="Platform: LinkedIn" title="Platform (tap to switch)">in</button>
+        </span>
       </div>
       <div class="btns">
         <button type="button" class="btn go" data-mode="confess">Confess</button>
@@ -190,6 +213,7 @@
         <p class="chopped" id="cap-title"></p>
         <p class="v-amount" id="cap-amount"></p>
         <p class="v-ref" id="notice-ref"></p>
+        <dl class="dossier" id="dossier" hidden></dl>
         <div class="send-block" id="notice-send" hidden>
           <p class="rec" id="notice-rec"></p>
           <p class="sub">or send one of these instead <span class="keys">press 1, 2, 3 to copy</span></p>
@@ -218,6 +242,17 @@
     </div>
     <p class="empty" id="empty">No cases on file. Suspiciously quiet.</p>
     <button type="button" class="mini danger" id="reset">Close account (reset)</button>
+  </section>
+
+  <!-- Most Wanted: the DeLARP Bureau's board -->
+  <section class="sheet wanted-sheet" id="wanted" hidden role="dialog" aria-modal="true" aria-labelledby="wanted-title">
+    <div class="sheet-head">
+      <h2 id="wanted-title">Most Wanted</h2>
+      <button type="button" class="mini" id="close-wanted">close</button>
+    </div>
+    <p class="natdebt">national aura debt <b id="nat-debt">&hellip;</b> <span id="nat-ceiling"></span></p>
+    <div class="posters" id="posters"></div>
+    <p class="src" id="wanted-src"></p>
   </section>
 
   <script src="/static/app.js"></script>

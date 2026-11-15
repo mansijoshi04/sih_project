@@ -40,7 +40,10 @@ Without `ANTHROPIC_API_KEY` the app runs in mock mode (`/api/health` reports `mo
 - Visual check: `playwright-core` (npm, in a scratch dir) driving the cached `~/.cache/ms-playwright/chromium_headless_shell-*` binary works for 1280x720 and 390px shots with real timing. Run the server without `ANTHROPIC_API_KEY` for mock verdicts.
 
 ## LARP check (teammate's API)
-- `POST /api/larp` proxies to `{LARP_API_URL}/api/analyze` with stdlib `urllib` (the installed anthropic SDK doesn't ship `httpx`). Its response shape is undocumented, so `map_larp_verdict()` accepts several field names; per-user `aura.balance` gets clamped to -10000.
+- DeLARP Stupid API endpoints: `POST /api/analyze {text?, image? (data URL), username?, platform?}`, `GET /api/stupid` (national_aura_debt, debt_ceiling, stats, most_wanted[]), `GET /api/stupid/aura-debt?username=&platform=linkedin|x` (one person's statement: offenses, aura{debt, apr, credit_rating, collections_agent, minimum_payment}, vibes{hustle_to_output_ratio, buzzwords_per_post}), `GET /api/larp-list`, `POST /api/fart` (unused so far). All calls go through `bureau()` (stdlib `urllib`; the installed anthropic SDK doesn't ship `httpx`).
+- `POST /api/larp {text?, image?, username?, platform?}`: text or a screenshot. With a username it also fetches their aura-debt statement and returns it as `dossier` (printed under the verdict). `map_larp_verdict()` still accepts several field names; per-user `aura.balance` gets clamped to -10000. Images are downscaled in the browser (max 1400px JPEG), server cap `MAX_IMAGE` (Vercel body limit is 4.5 MB).
+- `GET /api/most-wanted` proxies `/api/stupid` for the Most Wanted sheet (top-bar poster icon, paper "WANTED" posters, national debt counts up); falls back to `MOCK_STUPID`.
+- Front end when `larp_enabled`: paperclip in the textarea (or paste / drop a screenshot anywhere), "the founder" try-chip, and an `@who posted it?` field + in/x toggle in the chips row. All hidden when LARP is off, so the home screen is unchanged then.
 - Failures fall back to `MOCK_LARP`. `/api/health` reports `larp_enabled`; the front end unlocks the button from that.
 - Test servers: kill them by port (`ss -ltnp`), not `pkill -f`, which matches its own shell command.
 

@@ -15,6 +15,10 @@
     noticeQuest: $("notice-quest"), noticeQuestText: $("notice-quest-text"), noticeSrc: $("notice-src"),
     scrim: $("scrim"), receipts: $("receipts"), openReceipts: $("open-receipts"), closeReceipts: $("close-receipts"),
     history: $("history"), empty: $("empty"), reset: $("reset"),
+    attach: $("attach"), shot: $("shot"), shotImg: $("shot-img"), shotX: $("shot-x"), shotFile: $("shot-file"),
+    handle: $("handle"), plat: $("plat"), dossier: $("dossier"),
+    wanted: $("wanted"), openWanted: $("open-wanted"), closeWanted: $("close-wanted"),
+    natDebt: $("nat-debt"), natCeiling: $("nat-ceiling"), posters: $("posters"), wantedSrc: $("wanted-src"),
   };
   const actionButtons = Array.from(document.querySelectorAll(".btn[data-mode]"));
   const chips = Array.from(document.querySelectorAll(".chip"));
@@ -343,6 +347,7 @@
       els.replies.replaceChildren();
       els.noticeSend.hidden = true;
     }
+    renderDossier(r.dossier);
     els.noticeQuest.hidden = !(amt < 0 && r.side_quest);
     els.noticeQuestText.textContent = r.side_quest || "";
     els.noticeSrc.textContent = r.source === "mock" ? "Verdict from the backup ledger (offline mode)."
@@ -407,6 +412,167 @@
       return ok;
     } catch { return false; }
   }
+
+  // ---------- LARP check: the suspect's debt statement, printed line by line ----------
+  function renderDossier(d) {
+    const rows = [];
+    if (d) {
+      if (d.username) {
+        const who = ["@" + d.username, d.platform, d.offenses ? `offense #${d.offenses}` : ""].filter(Boolean).join(" · ");
+        rows.push(["suspect", who]);
+      }
+      if (d.debt) rows.push(["aura owed", fmt(d.debt)]);
+      if (d.credit_rating) rows.push(["credit rating", d.credit_rating]);
+      if (d.apr) rows.push(["APR", d.apr]);
+      if (d.collections_agent) rows.push(["collections", d.collections_agent]);
+      const vibes = [d.hustle_ratio && `hustle to output ${d.hustle_ratio}`, d.buzzwords != null && `${d.buzzwords} buzzwords per post`].filter(Boolean);
+      if (vibes.length) rows.push(["vibes", vibes.join(" · ")]);
+    }
+    els.dossier.replaceChildren();
+    rows.slice(0, 5).forEach(([k, v], i) => {
+      const dt = document.createElement("dt"), dd = document.createElement("dd");
+      dt.textContent = k; dd.textContent = v;
+      dt.style.setProperty("--k", String(i)); dd.style.setProperty("--k", String(i));
+      if (k === "credit rating" && /^F/.test(v)) dd.className = "neg";
+      els.dossier.append(dt, dd);
+    });
+    els.dossier.hidden = !rows.length;
+    els.verdict.classList.toggle("has-dossier", rows.length > 0);
+  }
+
+  // ---------- LARP check: screenshots (attach, paste or drop) ----------
+  let shot = null; // downscaled data URL
+  function shrinkImage(file) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        const k = Math.min(1, 1400 / Math.max(img.width, img.height));
+        const c = document.createElement("canvas");
+        c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+        const g = c.getContext("2d");
+        g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height);
+        g.drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        resolve(c.toDataURL("image/jpeg", 0.85));
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("not an image")); };
+      img.src = url;
+    });
+  }
+  async function attachShot(file) {
+    if (!larpOn || busy || !els.verdict.hidden || !file || !/^image\//.test(file.type)) return;
+    try { shot = await shrinkImage(file); } catch { judgeSays("that file is not a picture. the Bureau only reads pictures."); sfx.error(); return; }
+    els.shotImg.src = shot;
+    els.shot.hidden = false;
+    els.attach.hidden = true;
+    document.body.classList.add("has-shot");
+    restartAnim(els.shot, "in");
+    sfx.pop();
+    setJudge("typing");
+    look(4, 5);
+    judgeSays("screenshot received. hit LARP CHECK.");
+  }
+  function clearShot() {
+    shot = null;
+    els.shot.hidden = true;
+    els.shotImg.removeAttribute("src");
+    els.attach.hidden = !larpOn;
+    els.shotFile.value = "";
+    document.body.classList.remove("has-shot");
+  }
+  els.attach.addEventListener("click", () => els.shotFile.click());
+  els.shotFile.addEventListener("change", () => attachShot(els.shotFile.files[0]));
+  els.shotX.addEventListener("click", () => { clearShot(); reactToTyping(); els.entry.focus(); });
+  document.addEventListener("paste", (e) => {
+    const item = Array.from(e.clipboardData?.items || []).find((i) => i.kind === "file" && i.type.startsWith("image/"));
+    if (item && larpOn) { e.preventDefault(); attachShot(item.getAsFile()); }
+  });
+  els.desk.addEventListener("dragover", (e) => { if (larpOn) { e.preventDefault(); els.desk.classList.add("drop"); } });
+  els.desk.addEventListener("dragleave", () => els.desk.classList.remove("drop"));
+  els.desk.addEventListener("drop", (e) => {
+    els.desk.classList.remove("drop");
+    const f = e.dataTransfer?.files?.[0];
+    if (f && larpOn) { e.preventDefault(); attachShot(f); }
+  });
+  els.plat.addEventListener("click", () => {
+    const x = els.plat.dataset.p === "linkedin";
+    els.plat.dataset.p = x ? "x" : "linkedin";
+    els.plat.textContent = x ? "x" : "in";
+    els.plat.setAttribute("aria-label", `Platform: ${x ? "X" : "LinkedIn"}`);
+    sfx.pop();
+  });
+
+  // ---------- Most Wanted: the Bureau's board of repeat LARPers ----------
+  async function openWanted() {
+    els.scrim.hidden = false;
+    els.wanted.hidden = false;
+    els.closeWanted.focus({ preventScroll: true });
+    els.natDebt.textContent = "…";
+    els.natCeiling.textContent = "";
+    els.wantedSrc.textContent = "";
+    els.posters.replaceChildren(Object.assign(document.createElement("p"), { className: "empty", textContent: "pulling the files…" }));
+    let data;
+    try {
+      const res = await fetch("/api/most-wanted");
+      data = await res.json();
+      if (!res.ok) throw new Error();
+    } catch {
+      els.posters.replaceChildren(Object.assign(document.createElement("p"), { className: "empty", textContent: "The Bureau's filing cabinet is jammed. Try again." }));
+      return;
+    }
+    if (els.wanted.hidden) return;
+    countUp(els.natDebt, data.national_aura_debt);
+    els.natCeiling.textContent = data.debt_ceiling ? `· debt ceiling: ${data.debt_ceiling}` : "";
+    els.wantedSrc.textContent = data.source === "mock" ? "Bureau offline: showing the last records on file." : "Live from the DeLARP Bureau of Aura Enforcement.";
+    const seen = new Set();
+    const list = (data.most_wanted || []).filter((w) => {
+      const key = `${w.username}|${w.platform}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).sort((a, b) => (b.debt || 0) - (a.debt || 0));
+    if (!list.length) {
+      els.posters.replaceChildren(Object.assign(document.createElement("p"), { className: "empty", textContent: "Nobody wanted. Suspiciously humble internet." }));
+      return;
+    }
+    els.posters.replaceChildren(...list.map((w, i) => {
+      const card = document.createElement("article");
+      card.className = "poster";
+      card.style.setProperty("--k", String(i));
+      const line = (cls, text) => { const p = document.createElement("p"); p.className = cls; p.textContent = text; card.append(p); return p; };
+      line("p-wanted", "Wanted");
+      line("p-for", `for LARPing${w.platform ? " on " + (w.platform === "x" ? "X" : w.platform === "linkedin" ? "LinkedIn" : w.platform) : ""}`);
+      line("p-user", "@" + w.username);
+      const debt = line("p-debt", w.debt != null ? fmt(w.debt) : "?");
+      debt.append(Object.assign(document.createElement("small"), { textContent: " aura owed" }));
+      const meta = [w.larp_score != null && `LARP score ${w.larp_score}`, w.offenses && `${w.offenses} offense${w.offenses === 1 ? "" : "s"}`, w.credit_rating].filter(Boolean);
+      if (meta.length) line("p-meta", meta.join(" · "));
+      if (w.last_known_verdict) line("p-last", `“${w.last_known_verdict}”`);
+      if (w.minimum_payment) line("p-pay", `minimum payment: ${w.minimum_payment}`);
+      return card;
+    }));
+  }
+  // the national debt ticks up in chunky steps, like a cheap LED counter
+  function countUp(el, target) {
+    if (target == null) { el.textContent = "unknown"; return; }
+    if (reduceMotion()) { el.textContent = fmt(target); return; }
+    const steps = 14;
+    let i = 0;
+    const tick = () => {
+      i++;
+      el.textContent = fmt(Math.round(target * (1 - Math.pow(1 - i / steps, 3))));
+      if (i < steps && !els.wanted.hidden) setTimeout(tick, 55); else el.textContent = fmt(target);
+    };
+    tick();
+  }
+  function closeWanted() {
+    els.scrim.hidden = true;
+    els.wanted.hidden = true;
+    els.openWanted.focus({ preventScroll: true });
+  }
+  els.openWanted.addEventListener("click", () => { sfx.pop(); openWanted(); });
+  els.closeWanted.addEventListener("click", closeWanted);
 
   // ---------- the verdict: the judge speaks, then BANG ----------
   // A tap while typing finishes the line; a tap after that continues.
@@ -528,6 +694,7 @@
     chips.forEach((c) => (c.disabled = on));
     if (larpOn) els.larpBtn.disabled = on;
     els.entry.readOnly = on;
+    [els.handle, els.plat, els.attach, els.shotX].forEach((x) => (x.disabled = on));
     clearInterval(loadingTimer);
     document.body.classList.toggle("deliberating", on);
     ringSpeed(on ? 14 : 1);
@@ -546,8 +713,14 @@
 
   async function submit(mode) {
     const text = els.entry.value.trim();
-    if (!text) {
-      judgeSays("418 Too Delulu. type what you did first.");
+    if (!text && shot && mode !== "larp") {
+      judgeSays("screenshots go through LARP CHECK.");
+      restartAnim(els.larpBtn, "nope");
+      sfx.error();
+      return;
+    }
+    if (!text && !(mode === "larp" && shot)) {
+      judgeSays(mode === "larp" ? "418 Too Delulu. paste the post or drop a screenshot." : "418 Too Delulu. type what you did first.");
       restartAnim(els.entry, "nope");
       sfx.error();
       els.entry.focus();
@@ -559,7 +732,9 @@
       const res = await fetch(mode === "larp" ? "/api/larp" : "/api/aura", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(mode === "larp" ? { text } : { mode, text }),
+        body: JSON.stringify(mode === "larp"
+          ? { text, image: shot || undefined, username: els.handle.value.trim().replace(/^@/, "") || undefined, platform: els.plat.dataset.p }
+          : { mode, text }),
       });
       data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.detail || `Teller error ${res.status}`);
@@ -581,6 +756,7 @@
 
     setBusy(false);
     els.entry.value = "";
+    if (mode === "larp") { clearShot(); els.handle.value = ""; }
     updateCounter();
     renderHistory();
 
@@ -603,10 +779,11 @@
   chips.forEach((c) => c.addEventListener("click", () => {
     sfx.pop();
     els.entry.value = c.dataset.text;
+    if (c.dataset.handle) els.handle.value = "@" + c.dataset.handle;
     updateCounter();
     reactToTyping();
     els.entry.focus();
-    judgeSays(c.dataset.mode === "send" ? "loaded. now hit SHOULD I SEND?" : "loaded. now hit CONFESS.");
+    judgeSays(c.dataset.mode === "larp" ? "loaded. now hit LARP CHECK." : c.dataset.mode === "send" ? "loaded. now hit SHOULD I SEND?" : "loaded. now hit CONFESS.");
   }));
   els.entry.addEventListener("input", () => { updateCounter(); reactToTyping(); });
   els.entry.addEventListener("keydown", (e) => {
@@ -614,7 +791,7 @@
   });
   els.openReceipts.addEventListener("click", () => { sfx.pop(); openLog(); });
   els.closeReceipts.addEventListener("click", closeLog);
-  els.scrim.addEventListener("click", closeLog);
+  els.scrim.addEventListener("click", () => (els.wanted.hidden ? closeLog() : closeWanted()));
   document.addEventListener("keydown", (e) => {
     // 1 / 2 / 3 copy a reply while a "should I send?" verdict is up
     if (/^[123]$/.test(e.key) && !els.capResult.hidden && !els.verdict.hidden && !e.metaKey && !e.ctrlKey) {
@@ -625,6 +802,7 @@
     if (e.key !== "Escape") return;
     if (advance) advance();
     else if (!els.receipts.hidden) closeLog();
+    else if (!els.wanted.hidden) closeWanted();
   });
   els.reset.addEventListener("click", () => {
     if (!confirm("Close this account? All aura history will be deleted.")) return;
@@ -651,7 +829,10 @@
     els.larpBtn.disabled = false;
     els.larpBtn.classList.add("on");
     els.larpNote.textContent = "";
-    els.larpBtn.title = "Is this post a LARP?";
+    els.larpBtn.title = "Is this post a LARP? (paste text or a screenshot)";
+    els.attach.hidden = !!shot;
+    document.querySelectorAll(".larp-only").forEach((x) => { x.hidden = false; });
+    document.body.classList.add("larp-on");
   }).catch(() => { /* stays locked */ });
 
   // the empty box types out example confessions, one after another

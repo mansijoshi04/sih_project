@@ -65,7 +65,11 @@ For `"send"` mode, `send_verdict` is `"SEND"` or `"DO NOT SEND"` and `rewrite` h
 
 ### `POST /api/larp`
 
-`{ "text": "<a LinkedIn/X post>", "username"?: "...", "platform"?: "linkedin" | "x" }` returns the same shape as `/api/aura` plus `larp_score`. Forwards to the DeLARP API; falls back to a backup verdict if it's down.
+`{ "text"?: "<a LinkedIn/X post>", "image"?: "data:image/...", "username"?: "...", "platform"?: "linkedin" | "x" }` (text or a screenshot) returns the same shape as `/api/aura` plus `larp_score` and, when a username is given, a `dossier` (their aura debt statement). Forwards to the DeLARP API; falls back to a backup verdict if it's down.
+
+### `GET /api/most-wanted`
+
+The DeLARP Bureau's board: `{ source, national_aura_debt, debt_ceiling, most_wanted: [{ username, platform, larp_score, offenses, debt, credit_rating, minimum_payment, last_known_verdict }] }`. Falls back to the last records on file.
 
 ### Error codes
 

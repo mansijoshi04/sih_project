@@ -7,6 +7,7 @@ import logging
 import os
 import random
 import re
+import urllib.parse
 import urllib.request
 from pathlib import Path
 from typing import Literal, Optional
@@ -25,6 +26,7 @@ logging.basicConfig(level=logging.INFO)
 
 MODEL = "claude-haiku-5-5"
 MAX_CHARS = 1000
+MAX_IMAGE = 3_500_000  # data URL chars; Vercel caps request bodies at 4.5 MB
 # Teammate's DeLARP API (POST {LARP_API_URL}/api/analyze). Unset = LARP check stays locked.
 LARP_API_URL = os.getenv("LARP_API_URL", "").strip().rstrip("/")
 AURA_MIN, AURA_MAX = -10000, 5000
@@ -44,6 +46,19 @@ class Replies(BaseModel):
     bold: str
 
 
+class Dossier(BaseModel):
+    """A LARP suspect's debt statement from the DeLARP Bureau (all optional: the API is stupid on purpose)."""
+    username: Optional[str] = None
+    platform: Optional[str] = None
+    credit_rating: Optional[str] = None
+    apr: Optional[str] = None
+    collections_agent: Optional[str] = None
+    hustle_ratio: Optional[str] = None
+    buzzwords: Optional[int] = None
+    offenses: Optional[int] = None
+    debt: Optional[int] = None
+
+
 class AuraResponse(BaseModel):
     aura_change: int
     title: str
@@ -55,10 +70,12 @@ class AuraResponse(BaseModel):
     summary: str
     source: Literal["auditor", "mock", "larp"] = "auditor"
     larp_score: Optional[int] = None
+    dossier: Optional[Dossier] = None
 
 
 class LarpRequest(BaseModel):
     text: str = Field(default="", max_length=MAX_CHARS)
+    image: Optional[str] = Field(default=None, max_length=MAX_IMAGE)  # data URL, downscaled in the browser
     username: Optional[str] = Field(default=None, max_length=100)
     platform: Optional[Literal["linkedin", "x"]] = None
 
@@ -460,8 +477,11 @@ app = FastAPI(title="Aura Reserve Bank", docs_url="/api/docs")
 
 @app.exception_handler(RequestValidationError)
 async def _validation(_, exc):
-    too_long = any(e.get("type") == "string_too_long" for e in exc.errors())
-    detail = (f"Too Much Cringe: the slip holds {MAX_CHARS} characters. Please summarise your shame."
+    errors = exc.errors()
+    too_long = any(e.get("type") == "string_too_long" for e in errors)
+    big_image = too_long and any("image" in e.get("loc", ()) for e in errors)
+    detail = ("Screenshot too large. Crop it to the post and try again." if big_image else
+              f"Too Much Cringe: the slip holds {MAX_CHARS} characters. Please summarise your shame."
               if too_long else "Form ARB-69 filled out incorrectly. Mode must be 'confess' or 'send'.")
     return JSONResponse(status_code=422, content={"detail": detail})
 
@@ -480,17 +500,47 @@ def audit(req: AuraRequest):
 
 
 # ---------------------------------------------------------------- LARP check (teammate's API)
+# DeLARP Stupid API: POST /api/analyze {text?, image?, username?, platform?}, GET /api/stupid (national debt +
+# most_wanted), GET /api/stupid/aura-debt?username=&platform= (one person's statement). Every call falls back to
+# the backup ledger below, so the demo never breaks.
+def _dossier(username=None, platform=None, credit_rating="F (Founder of nothing)", apr=None,
+             collections_agent=None, hustle_ratio=None, buzzwords=None, offenses=None, debt=None):
+    return dict(username=username, platform=platform, credit_rating=credit_rating, apr=apr,
+                collections_agent=collections_agent, hustle_ratio=hustle_ratio, buzzwords=buzzwords,
+                offenses=offenses, debt=debt)
+
+
 MOCK_LARP = [
     dict(aura_change=-6900, title="Stealth Mode: Now With 100% Less Company", larp_score=96,
          roast="Congrats on the $10M ARR. Couldn't find the company, product or website, so the stealth is really working.",
-         side_quest="Ship literally anything.", summary="LARP caught: stealth founder"),
+         side_quest="Ship literally anything.", summary="LARP caught: stealth founder",
+         dossier=_dossier(apr="57% compounded every time they post", collections_agent="The ghost of your Series A",
+                          hustle_ratio="467:0", buzzwords=11)),
     dict(aura_change=-4200, title="Thought Leader, No Thoughts", larp_score=88,
          roast="Eleven buzzwords, zero information. The bank admires the efficiency.",
-         side_quest="Touch grass for 3 consecutive business days.", summary="LARP caught: buzzword overdose"),
+         side_quest="Touch grass for 3 consecutive business days.", summary="LARP caught: buzzword overdose",
+         dossier=_dossier(apr="59% compounded every time they post", collections_agent="Three unpaid interns",
+                          hustle_ratio="773:0", buzzwords=14)),
     dict(aura_change=650, title="Real Talk Detected", larp_score=12,
          roast="Specific, humble and verifiable. Suspiciously un-LARP. Aura credited.",
-         side_quest=None, summary="LARP check passed"),
+         side_quest=None, summary="LARP check passed",
+         dossier=_dossier(credit_rating="A (Actually did the thing)", hustle_ratio="1:1", buzzwords=0)),
 ]
+
+# what GET /api/stupid looked like on 2026-11-15, served when the Bureau can't be reached
+MOCK_STUPID = {
+    "national_aura_debt": 261200,
+    "debt_ceiling": "none. we are so cooked.",
+    "most_wanted": [
+        {"username": "demo_hustlebro", "platform": "linkedin", "larp_score": 96, "offenses": 1,
+         "aura": {"debt": 132595, "credit_rating": "F (Founder of nothing)",
+                  "minimum_payment": "Touch grass for 3 consecutive business days"},
+         "last_known_verdict": "Stealth Mode: Now With 100% Less Company"},
+        {"username": "chad.ventures", "platform": "linkedin", "larp_score": 93, "offenses": 1,
+         "aura": {"debt": 128605, "credit_rating": "F (Founder of nothing)", "minimum_payment": "Ship literally anything"},
+         "last_known_verdict": "Stealth Unicorn Found Nowhere, Visionary Dms Pending"},
+    ],
+}
 
 
 def _first(d: dict, *keys):
@@ -501,15 +551,58 @@ def _first(d: dict, *keys):
     return None
 
 
+def _int(v):
+    try:
+        return int(round(float(v)))
+    except (TypeError, ValueError):
+        return None
+
+
+def _str(v, limit=160):
+    return str(v).strip()[:limit] if v not in (None, "") else None
+
+
+def bureau(method: str, path: str, payload: Optional[dict] = None, params: Optional[dict] = None, timeout=25):
+    """Call the DeLARP API with stdlib urllib (the installed anthropic SDK doesn't ship httpx)."""
+    url = f"{LARP_API_URL}{path}"
+    if params:
+        url += "?" + urllib.parse.urlencode({k: v for k, v in params.items() if v})
+    http_req = urllib.request.Request(
+        url, method=method,
+        data=json.dumps(payload).encode() if payload is not None else None,
+        headers={"Content-Type": "application/json", "Accept": "application/json"},
+    )
+    with urllib.request.urlopen(http_req, timeout=timeout) as resp:
+        data = json.loads(resp.read().decode())
+    if not isinstance(data, dict):
+        raise ValueError(f"unexpected DeLARP response from {path}")
+    return data
+
+
+def map_dossier(data: dict) -> Optional[Dossier]:
+    aura = data.get("aura") if isinstance(data.get("aura"), dict) else {}
+    vibes = data.get("vibes") if isinstance(data.get("vibes"), dict) else {}
+    debt = _int(_first(aura, "debt"))
+    if debt is None and _int(aura.get("balance")) is not None:
+        debt = max(0, -_int(aura["balance"]))
+    d = Dossier(
+        username=_str(data.get("username"), 60), platform=_str(data.get("platform"), 20),
+        credit_rating=_str(aura.get("credit_rating"), 60), apr=_str(aura.get("apr"), 80),
+        collections_agent=_str(aura.get("collections_agent"), 80),
+        hustle_ratio=_str(vibes.get("hustle_to_output_ratio"), 20), buzzwords=_int(vibes.get("buzzwords_per_post")),
+        offenses=_int(data.get("offenses")), debt=debt,
+    )
+    return d if any(v is not None for v in d.model_dump().values()) else None
+
+
 def map_larp_verdict(data: dict) -> AuraResponse:
-    """The analyze response shape isn't documented yet, so accept the likely field names."""
+    """Map an /api/analyze response (plus the person's statement, if we fetched one) onto the verdict shape."""
     for nested in ("verdict", "result", "data"):
         if isinstance(data.get(nested), dict):
             data = {**data, **data[nested]}
     aura = data.get("aura") if isinstance(data.get("aura"), dict) else {}
 
-    score = _first(data, "larp_score", "larpScore", "score")
-    score = int(round(float(score))) if score is not None else None
+    score = _int(_first(data, "larp_score", "larpScore", "score"))
     is_larp = _first(data, "is_larp", "isLarp", "larp", "on_larp_list")
     if is_larp is None:
         is_larp = score is None or score >= 50
@@ -519,7 +612,7 @@ def map_larp_verdict(data: dict) -> AuraResponse:
         change = aura["balance"]
     if change is None:
         change = -(score or 70) * 75 if is_larp else 400
-    change = max(AURA_MIN, min(AURA_MAX, int(round(float(change)))))
+    change = max(AURA_MIN, min(AURA_MAX, _int(change) or 0))
 
     title = _first(data, "verdict", "title", "headline", "last_known_verdict")
     if not isinstance(title, str):
@@ -536,42 +629,96 @@ def map_larp_verdict(data: dict) -> AuraResponse:
         summary=f"LARP check: {title[:40]}",
         source="larp",
         larp_score=score,
+        dossier=map_dossier(data),
     )
 
 
-def larp_check(req: LarpRequest, text: str) -> AuraResponse:
-    payload = {"text": text}
+def mock_larp(req: LarpRequest) -> AuraResponse:
+    data = dict(random.choice(MOCK_LARP))
+    dossier = dict(data.pop("dossier"))
     if req.username:
-        payload["username"] = req.username
-    if req.platform:
-        payload["platform"] = req.platform
+        dossier.update(username=req.username.lstrip("@"), platform=req.platform or "linkedin", offenses=1,
+                       debt=max(0, -data["aura_change"]))
+    return AuraResponse(**data, dossier=Dossier(**dossier), source="mock")
+
+
+def larp_check(req: LarpRequest, text: str) -> AuraResponse:
+    username = (req.username or "").strip().lstrip("@") or None
+    payload = {k: v for k, v in {"text": text, "image": req.image, "username": username,
+                                 "platform": req.platform if username else None}.items() if v}
     try:
-        http_req = urllib.request.Request(
-            f"{LARP_API_URL}/api/analyze",
-            data=json.dumps(payload).encode(),
-            headers={"Content-Type": "application/json", "Accept": "application/json"},
-            method="POST",
-        )
-        with urllib.request.urlopen(http_req, timeout=25) as resp:
-            data = json.loads(resp.read().decode())
-        if not isinstance(data, dict):
-            raise ValueError("unexpected LARP response")
-        return map_larp_verdict(data)
+        data = bureau("POST", "/api/analyze", payload)
     except Exception as exc:  # demo must never break
         log.warning("LARP API unavailable, using backup verdict: %s", exc)
-        return AuraResponse(**random.choice(MOCK_LARP), source="mock")
+        return mock_larp(req)
+    if username:  # fetch their (now updated) debt statement: offenses, APR, collections agent
+        try:
+            statement = bureau("GET", "/api/stupid/aura-debt", params={"username": username, "platform": req.platform},
+                               timeout=6)
+            merged_aura = {**(data.get("aura") if isinstance(data.get("aura"), dict) else {}),
+                           **(statement.get("aura") if isinstance(statement.get("aura"), dict) else {})}
+            data = {**statement, **data, "aura": merged_aura}
+            for key in ("offenses", "vibes", "username", "platform"):
+                if statement.get(key) is not None:
+                    data[key] = statement[key]
+        except Exception as exc:
+            log.info("No debt statement for %s: %s", username, exc)
+    try:
+        return map_larp_verdict(data)
+    except Exception as exc:
+        log.warning("Unreadable LARP verdict, using backup: %s", exc)
+        return mock_larp(req)
 
 
 @app.post("/api/larp", response_model=AuraResponse)
 def larp(req: LarpRequest):
     text = req.text.strip()
-    if not text:
-        return JSONResponse(status_code=418, content={"detail": "418 Too Delulu: paste a post to LARP-check first."})
+    if not text and not req.image:
+        return JSONResponse(status_code=418, content={"detail": "418 Too Delulu: paste a post or drop a screenshot first."})
+    if req.image and not req.image.startswith("data:image/"):
+        return JSONResponse(status_code=422, content={"detail": "That screenshot isn't an image. The Bureau only reads pictures."})
     if is_hackathon_brag(text):
         return hackathon_verdict("confess")
     if not LARP_API_URL:
         return JSONResponse(status_code=503, content={"detail": "LARP check: service available Q3 (LARP_API_URL not set)."})
     return larp_check(req, text)
+
+
+def map_wanted(w: dict) -> dict:
+    aura = w.get("aura") if isinstance(w.get("aura"), dict) else {}
+    debt = _int(aura.get("debt"))
+    if debt is None and _int(aura.get("balance")) is not None:
+        debt = max(0, -_int(aura["balance"]))
+    return {
+        "username": _str(w.get("username"), 60) or "unknown",
+        "platform": _str(w.get("platform"), 20),
+        "larp_score": _int(w.get("larp_score")),
+        "offenses": _int(w.get("offenses")),
+        "debt": debt,
+        "credit_rating": _str(aura.get("credit_rating"), 60),
+        "minimum_payment": _str(aura.get("minimum_payment"), 100),
+        "last_known_verdict": _str(w.get("last_known_verdict"), 120),
+    }
+
+
+@app.get("/api/most-wanted")
+def most_wanted():
+    data, source = None, "mock"
+    if LARP_API_URL:
+        try:
+            data = bureau("GET", "/api/stupid", timeout=8)
+            source = "larp"
+        except Exception as exc:  # demo must never break
+            log.warning("DeLARP board unavailable, using backup: %s", exc)
+    if not isinstance(data, dict) or not isinstance(data.get("most_wanted"), list):
+        data, source = MOCK_STUPID, "mock"
+    wanted = [map_wanted(w) for w in data["most_wanted"] if isinstance(w, dict)][:12]
+    return {
+        "source": source,
+        "national_aura_debt": _int(data.get("national_aura_debt")),
+        "debt_ceiling": _str(data.get("debt_ceiling"), 80),
+        "most_wanted": wanted,
+    }
 
 
 @app.get("/api/health")
