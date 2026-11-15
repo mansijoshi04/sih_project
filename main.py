@@ -58,6 +58,8 @@ class Dossier(BaseModel):
     buzzwords: Optional[int] = None
     offenses: Optional[int] = None
     debt: Optional[int] = None
+    claim: Optional[str] = None      # their web-checked claim, e.g. '"$10M ARR in 3 months" · pure vibes'
+    buzzword: Optional[str] = None   # e.g. '"synergy" = two people in a meeting'
 
 
 class AuraResponse(BaseModel):
@@ -655,6 +657,27 @@ def bureau(method: str, path: str, payload: Optional[dict] = None, params: Optio
     return data
 
 
+def _claim(claims) -> Optional[str]:
+    """The most damning claim they checked: debunked beats pure vibes beats unverified."""
+    if not isinstance(claims, list):
+        return None
+    rank = {"debunked": 0, "pure vibes": 1, "unverified": 2, "verified": 3}
+    good = [c for c in claims if isinstance(c, dict) and c.get("claim")]
+    if not good:
+        return None
+    c = min(good, key=lambda c: rank.get(str(c.get("verdict")), 4))
+    return _str(f"\u201c{str(c['claim']).strip()[:90]}\u201d \u00b7 {c.get('verdict') or 'unchecked'}", 140)
+
+
+def _buzzword(words) -> Optional[str]:
+    if not isinstance(words, list):
+        return None
+    for w in words:
+        if isinstance(w, dict) and w.get("original") and w.get("translation"):
+            return _str(f"\u201c{w['original']}\u201d = {w['translation']}", 140)
+    return None
+
+
 def map_dossier(data: dict) -> Optional[Dossier]:
     aura = data.get("aura") if isinstance(data.get("aura"), dict) else {}
     vibes = data.get("vibes") if isinstance(data.get("vibes"), dict) else {}
@@ -667,6 +690,7 @@ def map_dossier(data: dict) -> Optional[Dossier]:
         collections_agent=_str(aura.get("collections_agent"), 80),
         hustle_ratio=_str(vibes.get("hustle_to_output_ratio"), 20), buzzwords=_int(vibes.get("buzzwords_per_post")),
         offenses=_int(data.get("offenses")), debt=debt,
+        claim=_claim(data.get("claims")), buzzword=_buzzword(data.get("buzzwords")),
     )
     return d if any(v is not None for v in d.model_dump().values()) else None
 
@@ -731,18 +755,21 @@ def larp_check(req: LarpRequest, text: str) -> AuraResponse:
     payload = {k: v for k, v in {"text": text, "image": req.image, "username": username,
                                  "platform": req.platform if username else None}.items() if v}
     try:
-        data = bureau("POST", "/api/analyze", payload)
+        data = bureau("POST", "/api/analyze", payload, timeout=55)  # they web-search the claims first
     except Exception as exc:  # demo must never break: our own auditor reads it, then the backup ledger
         log.warning("LARP API unavailable, asking our auditor instead: %s", exc)
         return auditor_larp(req, text)
+    # their model reads the handle off the post/screenshot when we didn't get one
+    username = username or _str(data.get("username"), 60)
     if username:  # fetch their (now updated) debt statement: offenses, APR, collections agent
         try:
-            statement = bureau("GET", "/api/stupid/aura-debt", params={"username": username, "platform": req.platform},
+            statement = bureau("GET", "/api/stupid/aura-debt",
+                               params={"username": username, "platform": req.platform or data.get("platform")},
                                timeout=6)
             merged_aura = {**(data.get("aura") if isinstance(data.get("aura"), dict) else {}),
                            **(statement.get("aura") if isinstance(statement.get("aura"), dict) else {})}
             data = {**statement, **data, "aura": merged_aura}
-            for key in ("offenses", "vibes", "username", "platform"):
+            for key in ("offenses", "vibes"):
                 if statement.get(key) is not None:
                     data[key] = statement[key]
         except Exception as exc:

@@ -421,6 +421,8 @@
         const who = ["@" + d.username, d.platform, d.offenses ? `offense #${d.offenses}` : ""].filter(Boolean).join(" · ");
         rows.push(["suspect", who]);
       }
+      if (d.claim) rows.push(["claim check", d.claim]);
+      if (d.buzzword) rows.push(["translation", d.buzzword]);
       if (d.debt) rows.push(["aura owed", fmt(d.debt)]);
       if (d.credit_rating) rows.push(["credit rating", d.credit_rating]);
       if (d.apr) rows.push(["APR", d.apr]);
@@ -433,7 +435,7 @@
       const dt = document.createElement("dt"), dd = document.createElement("dd");
       dt.textContent = k; dd.textContent = v;
       dt.style.setProperty("--k", String(i)); dd.style.setProperty("--k", String(i));
-      if (k === "credit rating" && /^F/.test(v)) dd.className = "neg";
+      if ((k === "credit rating" && /^F/.test(v)) || (k === "claim check" && /(debunked|pure vibes)$/.test(v))) dd.className = "neg";
       els.dossier.append(dt, dd);
     });
     els.dossier.hidden = !rows.length;
