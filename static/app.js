@@ -60,17 +60,20 @@
       src.connect(f).connect(g).connect(c.destination);
       src.start(t);
     }
-    let lastTick = 0;
+    // soft "character talking" blip, one per word, pitched from a cheerful pentatonic scale
+    const BLIP_NOTES = [523, 587, 659, 784, 880, 1047];
+    let lastBlip = 0;
     return {
       get on() { return on; },
       set on(v) { on = v; try { localStorage.setItem(SOUND_KEY, v ? "on" : "off"); } catch { /* ignore */ } },
       unlock() { ac(); },
       pop() { tone(620, 0, 0.07, { type: "sine", vol: 0.12, slideTo: 900 }); },
-      tick() {
+      blip() {
         const now = performance.now();
-        if (now - lastTick < 35) return;
-        lastTick = now;
-        noise(0, 0.025, 0.08, 2500 + Math.random() * 2000);
+        if (now - lastBlip < 70) return;
+        lastBlip = now;
+        const f = BLIP_NOTES[Math.floor(Math.random() * BLIP_NOTES.length)];
+        tone(f, 0, 0.08, { type: "triangle", vol: 0.05, slideTo: f * 1.12 });
       },
       slam() {
         tone(140, 0, 0.45, { type: "sine", vol: 0.5, slideTo: 38 });
@@ -272,8 +275,8 @@
       els.capTyped.append(span);
       for (const ch of w) {
         if (interrupted) break;
+        if (!span.textContent) sfx.blip();
         span.textContent += ch;
-        sfx.tick();
         const pause = /[.!?]/.test(ch) ? 380 : /[,;:]/.test(ch) ? 200 : 48;
         await Promise.race([wait(pause), tapped]);
       }
