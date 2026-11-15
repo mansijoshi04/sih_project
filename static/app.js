@@ -11,7 +11,7 @@
     larpBtn: $("larp-btn"), larpNote: $("larp-note"),
     vBubble: $("v-bubble"), capTyped: $("cap-typed"), caret: $("caret"),
     capResult: $("cap-result"), capTitle: $("cap-title"), capAmount: $("cap-amount"), capNext: $("cap-next"),
-    noticeRef: $("notice-ref"), noticeSend: $("notice-send"), noticeRec: $("notice-rec"), noticeRewrite: $("notice-rewrite"), copyRewrite: $("copy-rewrite"),
+    noticeRef: $("notice-ref"), noticeSend: $("notice-send"), noticeRec: $("notice-rec"), replies: $("replies"),
     noticeQuest: $("notice-quest"), noticeQuestText: $("notice-quest-text"), noticeSrc: $("notice-src"),
     scrim: $("scrim"), receipts: $("receipts"), openReceipts: $("open-receipts"), closeReceipts: $("close-receipts"),
     history: $("history"), empty: $("empty"), reset: $("reset"),
@@ -91,6 +91,12 @@
       result(amount) {
         this.slam();
         setTimeout(() => (amount < 0 ? this.womp() : this.levelUp()), 280);
+      },
+      deal() { noise(0, 0.06, 0.06, 2500); }, // a card flicked onto the desk
+      stamp() { tone(180, 0, 0.12, { type: "sine", vol: 0.25, slideTo: 70 }); noise(0, 0.05, 0.1, 400); },
+      copy(risky) { // two quick rising notes; the risky one ends on a wobble
+        tone(784, 0, 0.07, { type: "triangle", vol: 0.07 });
+        tone(risky ? 1109 : 1175, 0.07, 0.14, { type: "triangle", vol: 0.07, slideTo: risky ? 990 : 1320 });
       },
       error() { tone(220, 0, 0.12, { type: "square", vol: 0.06 }); tone(165, 0.13, 0.2, { type: "square", vol: 0.06 }); },
     };
@@ -332,16 +338,74 @@
       els.noticeSend.hidden = false;
       els.noticeRec.textContent = ok ? "Recommendation: SEND" : "Recommendation: DO NOT SEND";
       els.noticeRec.className = `rec ${ok ? "pos" : "neg"}`;
-      els.noticeRewrite.textContent = r.rewrite || "(no rewrite on file)";
-      els.copyRewrite.hidden = !r.rewrite;
-      els.copyRewrite.textContent = "copy";
+      renderReplies(r.replies || (r.rewrite ? { balanced: r.rewrite } : {}));
     } else {
+      els.replies.replaceChildren();
       els.noticeSend.hidden = true;
     }
     els.noticeQuest.hidden = !(amt < 0 && r.side_quest);
     els.noticeQuestText.textContent = r.side_quest || "";
     els.noticeSrc.textContent = r.source === "mock" ? "Verdict from the backup ledger (offline mode)."
       : r.source === "larp" ? "Verdict from the DeLARP Bureau of Aura Enforcement." : "";
+  }
+
+  // ---------- "should I send?": three ready-to-send replies, from safe to reckless ----------
+  const RISKS = [
+    { key: "safe", name: "Safe play", stakes: [["+200", "pos"]] },
+    { key: "balanced", name: "Balanced", stakes: [["+800", "pos"]] },
+    { key: "bold", name: "High risk", stakes: [["+3,000", "pos"], ["or", ""], [MINUS + "5,000", "neg"]] },
+  ];
+  function renderReplies(replies) {
+    els.replies.replaceChildren(...RISKS.filter((k) => replies[k.key]).map((k, i) => {
+      const li = document.createElement("li");
+      li.className = `reply r-${k.key}`;
+      li.style.setProperty("--k", String(i));
+      const tag = document.createElement("span");
+      tag.className = "tag";
+      const name = document.createElement("b");
+      name.textContent = k.name;
+      const stakes = document.createElement("span");
+      stakes.className = "stakes";
+      for (const [txt, cls] of k.stakes) {
+        const s = document.createElement("span");
+        if (cls) s.className = cls;
+        s.textContent = txt;
+        stakes.append(s, " ");
+      }
+      tag.append(name, stakes);
+      const text = document.createElement("p");
+      text.className = "r-text";
+      text.textContent = replies[k.key];
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "mini copy";
+      btn.textContent = "copy";
+      btn.setAttribute("aria-label", `Copy the ${k.name.toLowerCase()} reply`);
+      btn.addEventListener("click", () => copyReply(li));
+      li.append(tag, text, btn);
+      return li;
+    }));
+  }
+  async function copyReply(li) {
+    const btn = li.querySelector(".copy");
+    const text = li.querySelector(".r-text").textContent;
+    let ok = true;
+    try { await navigator.clipboard.writeText(text); } catch { ok = fallbackCopy(text); }
+    els.replies.querySelectorAll(".reply.copied").forEach((x) => { if (x !== li) { x.classList.remove("copied"); x.querySelector(".copy").textContent = "copy"; } });
+    btn.textContent = ok ? "copied" : "select it";
+    if (ok) { restartAnim(li, "copied"); sfx.copy(li.classList.contains("r-bold")); }
+    else sfx.error();
+  }
+  // clipboard API needs https or localhost; this keeps copy working on a LAN demo too
+  function fallbackCopy(text) {
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text; ta.setAttribute("readonly", ""); ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.append(ta); ta.select();
+      const ok = document.execCommand("copy");
+      ta.remove();
+      return ok;
+    } catch { return false; }
   }
 
   // ---------- the verdict: the judge speaks, then BANG ----------
@@ -422,6 +486,11 @@
     restartAnim(rings, "burst");
     sfx.result(r.aura_change);
     els.capResult.hidden = false;
+    if (!still && !els.noticeSend.hidden) { // time the stamp and the dealt cards with their CSS delays
+      const d = parseFloat(els.capResult.style.getPropertyValue("--d")) || 200;
+      setTimeout(() => sfx.stamp(), d + 380);
+      Array.from(els.replies.children).forEach((_, k) => setTimeout(() => sfx.deal(), d + 600 + k * 140));
+    }
     els.capNext.textContent = "continue";
     els.capNext.classList.add("ready");
     els.capNext.focus({ preventScroll: true });
@@ -543,18 +612,16 @@
   els.entry.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) submit("confess");
   });
-  els.copyRewrite.addEventListener("click", async () => {
-    try {
-      await navigator.clipboard.writeText(els.noticeRewrite.textContent);
-      els.copyRewrite.textContent = "copied";
-    } catch {
-      els.copyRewrite.textContent = "copy failed";
-    }
-  });
   els.openReceipts.addEventListener("click", () => { sfx.pop(); openLog(); });
   els.closeReceipts.addEventListener("click", closeLog);
   els.scrim.addEventListener("click", closeLog);
   document.addEventListener("keydown", (e) => {
+    // 1 / 2 / 3 copy a reply while a "should I send?" verdict is up
+    if (/^[123]$/.test(e.key) && !els.capResult.hidden && !els.verdict.hidden && !e.metaKey && !e.ctrlKey) {
+      const li = els.replies.children[Number(e.key) - 1];
+      if (li && !els.noticeSend.hidden) { e.preventDefault(); copyReply(li); }
+      return;
+    }
     if (e.key !== "Escape") return;
     if (advance) advance();
     else if (!els.receipts.hidden) closeLog();

@@ -38,12 +38,19 @@ class AuraRequest(BaseModel):
     text: str = Field(default="", max_length=MAX_CHARS)
 
 
+class Replies(BaseModel):
+    safe: str
+    balanced: str
+    bold: str
+
+
 class AuraResponse(BaseModel):
     aura_change: int
     title: str
     roast: str
     send_verdict: Optional[Literal["SEND", "DO NOT SEND"]] = None
     rewrite: Optional[str] = None
+    replies: Optional[Replies] = None
     side_quest: Optional[str] = None
     summary: str
     source: Literal["auditor", "mock", "larp"] = "auditor"
@@ -79,6 +86,7 @@ JSON shape:
   "roast": "one punchy sentence, 8-18 words, in the auditor's deadpan voice (it is shown as big video captions)",
   "send_verdict": null,
   "rewrite": null,
+  "replies": null,
   "side_quest": "if aura_change < 0: a short, harmless, slightly absurd repayment task to win aura back; else null",
   "summary": "3-6 word label for the transaction history table"
 }"""
@@ -94,9 +102,15 @@ JSON shape:
   "roast": "one punchy sentence, 8-18 words, in the auditor's deadpan voice (it is shown as big video captions)",
   "send_verdict": "SEND" or "DO NOT SEND",
   "rewrite": "a higher-aura version of their message, in their voice, under 280 characters",
+  "replies": {
+    "safe": "SAFE PLAY: the lowest-risk version. Polite, short, impossible to get cooked for. Small upside.",
+    "balanced": "BALANCED: confident and warm, clear ask or point, no over-explaining. The best default.",
+    "bold": "HIGH RISK, HIGH AURA: playful, witty or direct in a way that either lands hard or flops. Still kind, never mean or creepy."
+  },
   "side_quest": "if aura_change < 0: a short, harmless repayment task; else null",
   "summary": "3-6 word label for the transaction history table"
-}"""
+}
+All three replies are ready to copy and send as-is: written in the customer's own voice and texting style (match their casing and punctuation), under 160 characters each, no labels, no quotes around them, no emoji unless they used emoji. They must be clearly different from each other, not three rewordings."""
 
 SCHEMA = {
     "type": "object",
@@ -106,10 +120,16 @@ SCHEMA = {
         "roast": {"type": "string"},
         "send_verdict": {"anyOf": [{"type": "string", "enum": ["SEND", "DO NOT SEND"]}, {"type": "null"}]},
         "rewrite": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+        "replies": {"anyOf": [{
+            "type": "object",
+            "properties": {"safe": {"type": "string"}, "balanced": {"type": "string"}, "bold": {"type": "string"}},
+            "required": ["safe", "balanced", "bold"],
+            "additionalProperties": False,
+        }, {"type": "null"}]},
         "side_quest": {"anyOf": [{"type": "string"}, {"type": "null"}]},
         "summary": {"type": "string"},
     },
-    "required": ["aura_change", "title", "roast", "send_verdict", "rewrite", "side_quest", "summary"],
+    "required": ["aura_change", "title", "roast", "send_verdict", "rewrite", "replies", "side_quest", "summary"],
     "additionalProperties": False,
 }
 
@@ -215,56 +235,86 @@ MOCK_SEND = [
          roast="Second message, zero replies. The bank is applying the fanum tax.",
          rewrite="(send nothing. let it breathe. silence is the higher-aura rewrite.)",
          side_quest="Go on a walk and do not check if they've been online.",
+         replies=dict(safe='no rush on that last one, talk whenever',
+                      balanced="ok i'll stop being mysterious: are you free this week or should i fall back",
+                      bold='my last text is now accruing interest. reply to avoid late fees'),
          summary="Double text attempt intercepted"),
     dict(kw=r"miss (yo)?u|still think|ex|come back|one more chance",
          aura_change=-4250, title="Ex Reactivation Blocked", send_verdict="DO NOT SEND",
          roast="It is late and you are feeling nostalgic. The bank has frozen this transfer.",
          rewrite="(nothing tonight. if it still feels right at noon, a simple 'hey, how are you?')",
          side_quest="Charge your phone in another room tonight.",
+         replies=dict(safe="hey, hope you're doing well",
+                      balanced='hey, saw something that reminded me of you. hope things are good on your end',
+                      bold='random thought: we were lowkey a great team. coffee and zero drama?'),
          summary="Late-night ex message blocked"),
     dict(kw=r"sorry|apologi[sz]e|my bad|my fault",
          aura_change=1340, title="Apology Cleared", send_verdict="SEND",
          roast="A direct apology with no excuses attached. Rare. Highkey approved.",
          rewrite="i'm sorry about that. no excuses, i should've handled it better.",
-         side_quest=None, summary="Clean apology approved"),
+         side_quest=None, replies=dict(safe='sorry about earlier, that was on me',
+                      balanced="i'm sorry about that. no excuses, i should've handled it better.",
+                      bold="i was wrong and i'm annoying about it. let me buy you food as reparations"),
+         summary="Clean apology approved"),
     dict(kw=r"wyd|u up|you up|^\W*he+y+\W*$|^\W*hi+\W*$",
          aura_change=-2260, title="Low Effort Wire", send_verdict="DO NOT SEND",
          roast="That is not a message, it is a notification with no content. Declined.",
          rewrite="saw this and thought of you. how's your week been?",
          side_quest="Write one sentence with a subject and a verb. Send that instead.",
+         replies=dict(safe="hey! how's your week going?",
+                      balanced="saw this and thought of you. how's your week been?",
+                      bold="i've drafted 4 openers and this is the least cringe one. hi. how are you"),
          summary="Low effort opener declined"),
     dict(kw=r"boss|sir|ma'?am|professor|resign|deadline|extension|manager|interview",
          aura_change=560, title="Professional Wire Cleared", send_verdict="SEND",
          roast="Polite, short, and zero emojis at the boss. The bank approves this one.",
          rewrite="Hi, quick one: could we find ten minutes this week to talk it through?",
-         side_quest=None, summary="Professional message approved"),
+         side_quest=None, replies=dict(safe='Hi, do you have a few minutes this week to chat?',
+                      balanced='Hi, quick one: could we find ten minutes this week to talk it through?',
+                      bold='Hi, I have an idea that could save us real time. Can I pitch it in 10 minutes this week?'),
+         summary="Professional message approved"),
     dict(kw=r"free|coffee|dinner|lunch|saturday|sunday|weekend|hang ?out|movie|grab",
          aura_change=880, title="Transfer Approved", send_verdict="SEND",
          roast="Clear, confident, no essay attached. It's giving aura farming. Approved.",
          rewrite="free saturday? there's a place i've been meaning to try, you in?",
-         side_quest=None, summary="Approved confident outgoing message"),
+         side_quest=None, replies=dict(safe='are you free this weekend?',
+                      balanced="free saturday? there's a place i've been meaning to try, you in?",
+                      bold='i found the best spot in the city and i need a witness. saturday?'),
+         summary="Approved confident outgoing message"),
     # generic pool
     dict(aura_change=-3400, title="Delulu Transfer Declined", send_verdict="DO NOT SEND",
          roast="Transfer frozen to protect you from yourself. This is glazing, bestie.",
          rewrite="hey, hope your week's going well. no pressure, just thought of you.",
          side_quest="Put the phone in another room for one hour and drink a glass of water.",
+         replies=dict(safe="hey, hope your week's going well",
+                      balanced="hey, hope your week's going well. no pressure, just thought of you.",
+                      bold="i'm being brave for once: i like talking to you. that's the whole text"),
          summary="Blocked delulu outgoing message"),
     dict(aura_change=-740, title="Needs One More Draft", send_verdict="DO NOT SEND",
          roast="Not a crashout, but it is giving first draft. Trim it and resubmit.",
          rewrite="hey, been thinking about this. want to catch up this week?",
          side_quest="Delete the last sentence. It is always the last sentence.",
+         replies=dict(safe='hey, want to catch up this week?',
+                      balanced='hey, been thinking about this. want to catch up this week?',
+                      bold='short version: i miss our chats. long version: coffee?'),
          summary="Returned for another draft"),
     dict(aura_change=430, title="Cleared With Minor Notes", send_verdict="SEND",
          roast="Fine as written. Not legendary, but nobody is getting cooked today.",
          rewrite="hey! are you around this week? would be good to catch up.",
-         side_quest=None, summary="Approved with minor notes"),
+         side_quest=None, replies=dict(safe='hey! are you around this week?',
+                      balanced='hey! are you around this week? would be good to catch up.',
+                      bold="clearing my schedule for you this week. pick a day, i'll bring snacks"),
+         summary="Approved with minor notes"),
 ]
 MOCK_SEND_ESSAY = dict(
     aura_change=-2980, title="Essay Detected", send_verdict="DO NOT SEND",
     roast="This is not a text, it is a term paper. Nobody is grading it.",
     rewrite="can we talk properly sometime this week? i'd rather say this in person.",
     side_quest="Cut it to two sentences. Read them out loud once before sending.",
-    summary="Essay-length message blocked")
+    replies=dict(safe='can we talk sometime this week?',
+                      balanced="can we talk properly sometime this week? i'd rather say this in person.",
+                      bold='i wrote you an essay and deleted it. short version: call me?'),
+         summary="Essay-length message blocked")
 
 _last_mock_title = None  # best effort: don't hand out the same backup verdict twice in a row
 
@@ -286,14 +336,20 @@ def mock_verdict(mode: str, text: str = "") -> AuraResponse:
     _last_mock_title = data["title"]
     data.setdefault("send_verdict", None)
     data.setdefault("rewrite", None)
+    data.setdefault("replies", None)
     return AuraResponse(**data, source="mock")
 
 
 # ---------------------------------------------------------------- house rule
 # Anyone who says they took part in the Stupid Ideas Hackathon gets a fixed +10,000, no model call.
 # This is the one verdict allowed above AURA_MAX.
-HACKATHON_RE = re.compile(r"stupid\s+ideas?\s+hackathon", re.I)
+# Matching is loose on purpose (typed live on stage): "stupid" and "hack" anywhere, in either order.
 HACKATHON_BONUS = 10000
+
+
+def is_hackathon_brag(text: str) -> bool:
+    lowered = text.lower()
+    return "stupid" in lowered and "hack" in lowered
 
 
 def hackathon_verdict(mode: str) -> AuraResponse:
@@ -303,6 +359,9 @@ def hackathon_verdict(mode: str) -> AuraResponse:
         roast="You built something useless on purpose, with a deadline. That is peak sigma. Maximum deposit.",
         send_verdict="SEND" if mode == "send" else None,
         rewrite="i participated in the stupid ideas hackathon. yes, on purpose." if mode == "send" else None,
+        replies=dict(safe="i was at the stupid ideas hackathon this weekend",
+                     balanced="i participated in the stupid ideas hackathon. yes, on purpose.",
+                     bold="i built something completely useless with a deadline and a team. ask me about it") if mode == "send" else None,
         side_quest=None,
         summary="Stupid Ideas Hackathon bonus",
     )
@@ -333,6 +392,23 @@ def extract_json(text: str) -> dict:
         return json.loads(text[start:end + 1])
 
 
+REPLY_FALLBACK = {"safe": "hey, hope your week's going well",
+                  "balanced": "hey, been thinking about this. want to catch up this week?",
+                  "bold": "short version: i'd like to see you. long version: coffee?"}
+
+
+def clean_replies(replies, rewrite) -> dict:
+    """Always hand the front end three ready-to-send strings, whatever the model returned."""
+    replies = replies if isinstance(replies, dict) else {}
+    out = {}
+    for key in ("safe", "balanced", "bold"):
+        text = str(replies.get(key) or "").strip().strip('"').strip()
+        if not text and key == "balanced" and rewrite:
+            text = str(rewrite).strip()
+        out[key] = text[:280] or REPLY_FALLBACK[key]
+    return out
+
+
 def normalize(data: dict, mode: str) -> AuraResponse:
     change = int(round(float(data.get("aura_change", 0))))
     change = max(AURA_MIN, min(AURA_MAX, change))
@@ -340,9 +416,11 @@ def normalize(data: dict, mode: str) -> AuraResponse:
     if mode == "send":
         if data.get("send_verdict") not in ("SEND", "DO NOT SEND"):
             data["send_verdict"] = "SEND" if change >= 0 else "DO NOT SEND"
+        data["replies"] = clean_replies(data.get("replies"), data.get("rewrite"))
     else:
         data["send_verdict"] = None
         data["rewrite"] = None
+        data["replies"] = None
     if change >= 0:
         data["side_quest"] = None
     elif not data.get("side_quest"):
@@ -396,7 +474,7 @@ def audit(req: AuraRequest):
             status_code=418,
             content={"detail": "418 Too Delulu: you submitted a blank slip. The auditor cannot audit vibes alone."},
         )
-    if HACKATHON_RE.search(text):
+    if is_hackathon_brag(text):
         return hackathon_verdict(req.mode)
     return ask_auditor(req.mode, text)
 
@@ -489,6 +567,8 @@ def larp(req: LarpRequest):
     text = req.text.strip()
     if not text:
         return JSONResponse(status_code=418, content={"detail": "418 Too Delulu: paste a post to LARP-check first."})
+    if is_hackathon_brag(text):
+        return hackathon_verdict("confess")
     if not LARP_API_URL:
         return JSONResponse(status_code=503, content={"detail": "LARP check: service available Q3 (LARP_API_URL not set)."})
     return larp_check(req, text)
