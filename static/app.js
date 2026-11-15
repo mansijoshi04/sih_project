@@ -6,7 +6,7 @@
   const els = {
     balance: $("balance"), standing: $("standing"), vibe: $("vibe"), stamp: $("stamp"),
     entry: $("entry"), counter: $("counter"), status: $("status"), txCount: $("tx-count"),
-    captions: $("captions"), capLine: $("cap-line"), capAmount: $("cap-amount"),
+    captions: $("captions"), capTyped: $("cap-typed"), caret: $("caret"), capResult: $("cap-result"), capTitle: $("cap-title"), capAmount: $("cap-amount"), capNext: $("cap-next"),
     scrim: $("scrim"), notice: $("notice"), noticeRef: $("notice-ref"), noticeTitle: $("notice-title"),
     noticeAmount: $("notice-amount"), noticeRoast: $("notice-roast"),
     noticeSend: $("notice-send"), noticeRec: $("notice-rec"), noticeRewrite: $("notice-rewrite"), copyRewrite: $("copy-rewrite"),
@@ -52,10 +52,10 @@
   const tier = (b) => TIERS.find((t) => b <= t.max);
 
   const PLACEHOLDERS = [
-    "spill it. what did you do?",
-    "i said \"love you\" to my teacher...",
-    "paste the text you're about to send",
-    "i walked into a glass door. the door won.",
+    "e.g. i said \"love you\" to my teacher",
+    "e.g. i waved at someone who wasn't waving at me",
+    "e.g. i walked into a glass door. the door won.",
+    "e.g. i laughed at a joke nobody made",
   ];
   const LOADING = [
     "Auditor reviewing your account…",
@@ -177,56 +177,70 @@
     if (lastFocus && lastFocus.focus) lastFocus.focus({ preventScroll: true });
   }
 
-  // ---------- captions ----------
-  function chunk(text) {
-    const words = text.trim().split(/\s+/);
-    const out = [];
-    let cur = [];
+  // ---------- full-screen typewriter verdict ----------
+  // Tap 1 finishes the typing, tap 2 continues. It also continues on its own after a generous pause.
+  let advance = null;
+  function tapToAdvance() { return new Promise((res) => { advance = res; }); }
+  els.captions.addEventListener("click", () => advance && advance());
+
+  async function typeOut(text) {
+    els.capTyped.replaceChildren();
+    let interrupted = false;
+    const tapped = tapToAdvance().then(() => { interrupted = true; });
+    const words = text.split(/(\s+)/);
     for (const w of words) {
-      cur.push(w);
-      if (cur.length === 3 || cur.join(" ").length > 15 || /[.!?;:]$/.test(w)) { out.push(cur); cur = []; }
-    }
-    if (cur.length) out.push(cur);
-    return out;
-  }
-  function showChunk(words) {
-    els.capLine.replaceChildren();
-    words.forEach((w, i) => {
+      if (interrupted) break;
+      if (/^\s+$/.test(w)) { els.capTyped.append(w); continue; }
       const span = document.createElement("span");
-      span.textContent = w;
       if (HOT.test(w)) span.className = "hot";
-      els.capLine.append(span);
-      if (i < words.length - 1) els.capLine.append(" ");
-    });
-    restartAnim(els.capLine, "pop");
+      els.capTyped.append(span);
+      for (const ch of w) {
+        if (interrupted) break;
+        span.textContent += ch;
+        const pause = /[.!?]/.test(ch) ? 380 : /[,;:]/.test(ch) ? 200 : 48;
+        await Promise.race([wait(pause), tapped]);
+      }
+    }
+    // a tap mid-typing shows the whole line at once
+    if (interrupted) {
+      els.capTyped.replaceChildren();
+      text.split(/(\s+)/).forEach((w) => {
+        if (/^\s+$/.test(w)) return els.capTyped.append(w);
+        const span = document.createElement("span");
+        if (HOT.test(w)) span.className = "hot";
+        span.textContent = w;
+        els.capTyped.append(span);
+      });
+    }
+    return interrupted;
   }
 
-  let skip = null;
-  async function playCaptions(r) {
+  async function playVerdict(r) {
     if (reduceMotion()) return;
-    let skipped = false;
-    const skipped$ = new Promise((res) => { skip = () => { skipped = true; res(); }; });
-    const step = (ms) => Promise.race([wait(ms), skipped$]);
-
-    els.capAmount.textContent = "";
+    els.captions.dataset.tier = tier(state.balance).key;
+    els.capResult.hidden = true;
+    els.caret.hidden = false;
+    els.capNext.textContent = "tap to skip";
+    els.capNext.classList.remove("ready");
     document.body.classList.add("capping");
     els.captions.hidden = false;
-    for (const words of chunk(r.roast)) {
-      if (skipped) break;
-      showChunk(words);
-      await step(300 + words.length * 140);
-    }
-    if (!skipped) {
-      els.capLine.textContent = "";
-      els.capAmount.textContent = `${fmtSigned(r.aura_change)} aura`;
-      restartAnim(els.capAmount, "slam");
-      await step(1100);
-    }
+
+    const wasTapped = await typeOut(r.roast);
+    if (!wasTapped) await Promise.race([wait(1400), tapToAdvance()]);
+
+    els.caret.hidden = true;
+    els.capTitle.textContent = r.title;
+    els.capAmount.textContent = `${fmtSigned(r.aura_change)} aura`;
+    els.capResult.hidden = false;
+    els.capNext.textContent = "tap to continue";
+    els.capNext.classList.add("ready");
+    await wait(450);
+    await Promise.race([wait(6000), tapToAdvance()]);
+
+    advance = null;
     els.captions.hidden = true;
     document.body.classList.remove("capping");
-    skip = null;
   }
-  els.captions.addEventListener("click", () => skip && skip());
 
   // ---------- actions ----------
   let loadingTimer = 0;
@@ -283,7 +297,7 @@
     fillNotice(verdict, mode);
     renderHistory();
 
-    await playCaptions(verdict);
+    await playVerdict(verdict);
 
     renderStanding(true);
     animateTo(state.balance);
@@ -324,7 +338,7 @@
   els.closeReceipts.addEventListener("click", closeSheets);
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
-    if (skip) skip();
+    if (advance) advance();
     else closeSheets();
   });
   els.reset.addEventListener("click", () => {
@@ -338,7 +352,8 @@
   });
 
   // ---------- init ----------
-  els.entry.placeholder = pick(PLACEHOLDERS);
+  els.entry.placeholder = `type here... ${pick(PLACEHOLDERS)}`;
+  if (window.matchMedia("(min-width: 700px)").matches) els.entry.focus({ preventScroll: true });
   paintBalance(state.balance);
   renderStanding();
   renderHistory();

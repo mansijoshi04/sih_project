@@ -7,15 +7,26 @@
   <meta name="description" content="Aura Debt: confess your cringe, get audited.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Rubik:ital,wght@0,400;0,600;0,800;0,900;1,900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400..700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body data-tier="npc">
+
+  <!-- floating sparkles (decoration only) -->
+  <div class="sky" aria-hidden="true">
+    <svg class="spark s1" viewBox="0 0 24 24"><path d="M12 0c1 7 5 11 12 12-7 1-11 5-12 12-1-7-5-11-12-12 7-1 11-5 12-12z"/></svg>
+    <svg class="spark s2" viewBox="0 0 24 24"><path d="M12 0c1 7 5 11 12 12-7 1-11 5-12 12-1-7-5-11-12-12 7-1 11-5 12-12z"/></svg>
+    <svg class="spark s3" viewBox="0 0 24 24"><path d="M12 0c1 7 5 11 12 12-7 1-11 5-12 12-1-7-5-11-12-12 7-1 11-5 12-12z"/></svg>
+    <svg class="spark s4" viewBox="0 0 24 24"><path d="M12 0c1 7 5 11 12 12-7 1-11 5-12 12-1-7-5-11-12-12 7-1 11-5 12-12z"/></svg>
+    <svg class="spark s5" viewBox="0 0 24 24"><path d="M12 0c1 7 5 11 12 12-7 1-11 5-12 12-1-7-5-11-12-12 7-1 11-5 12-12z"/></svg>
+    <span class="dot d1"></span><span class="dot d2"></span><span class="dot d3"></span>
+  </div>
 
   <header class="top">
     <span class="brand">Aura Reserve Bank</span>
     <button type="button" class="ghost" id="open-receipts" aria-haspopup="dialog">receipts <span class="count" id="tx-count"></span></button>
   </header>
+
   <p class="legal">Aura balances are not legal tender and cannot be exchanged for rizz.</p>
 
   <main class="stage">
@@ -28,15 +39,23 @@
     </section>
 
     <section class="composer" aria-label="New transaction">
-      <label class="sr-only" for="entry">Confess the incident, or paste the text you're about to send</label>
-      <textarea id="entry" rows="2" maxlength="1000"></textarea>
-      <div class="composer-row">
-        <div class="chips">
-          <button type="button" class="chip" data-mode="confess" data-text="I said &quot;you too&quot; when the waiter told me to enjoy my meal.">the waiter</button>
-          <button type="button" class="chip" data-mode="confess" data-text="I waved back at someone who was waving at the person behind me. Then I pretended to fix my hair.">the wave</button>
-          <button type="button" class="chip" data-mode="send" data-text="Context: we went on one date 3 weeks ago and she left me on delivered. Message: &quot;hey so i was just wondering if u ever got my last message lol&quot;">the follow-up</button>
-        </div>
+      <div class="step-row">
+        <span class="step">1</span>
+        <label for="entry"><b>Type what you did</b> <span>or paste a text you&rsquo;re scared to send</span></label>
+      </div>
+      <div class="field">
+        <textarea id="entry" rows="2" maxlength="1000" placeholder="type here..."></textarea>
         <span class="counter" id="counter">0/1000</span>
+      </div>
+      <div class="chips">
+        <span class="chips-label">no ideas? tap one:</span>
+        <button type="button" class="chip" data-mode="confess" data-text="I said &quot;you too&quot; when the waiter told me to enjoy my meal.">the waiter</button>
+        <button type="button" class="chip" data-mode="confess" data-text="I waved back at someone who was waving at the person behind me. Then I pretended to fix my hair.">the wave</button>
+        <button type="button" class="chip" data-mode="send" data-text="Context: we went on one date 3 weeks ago and she left me on delivered. Message: &quot;hey so i was just wondering if u ever got my last message lol&quot;">the follow-up</button>
+      </div>
+      <div class="step-row">
+        <span class="step">2</span>
+        <span><b>Get audited</b></span>
       </div>
       <div class="actions">
         <button type="button" class="btn btn-primary" data-mode="confess">Confess</button>
@@ -50,11 +69,15 @@
     </section>
   </main>
 
-  <!-- the verdict plays here as captions first -->
+  <!-- the verdict types out here, full screen -->
   <div class="captions" id="captions" hidden>
-    <p class="cap-line" id="cap-line"></p>
-    <p class="cap-amount" id="cap-amount"></p>
-    <p class="cap-skip">tap to skip</p>
+    <p class="cap-kicker">the auditor says</p>
+    <p class="cap-line"><span id="cap-typed"></span><span class="caret" id="caret"></span></p>
+    <div class="cap-result" id="cap-result" hidden>
+      <p class="cap-title" id="cap-title"></p>
+      <p class="cap-amount" id="cap-amount"></p>
+    </div>
+    <button type="button" class="cap-next" id="cap-next">tap to skip</button>
   </div>
 
   <!-- then lands here -->

@@ -23,14 +23,15 @@ Without `ANTHROPIC_API_KEY` the app runs in mock mode (`/api/health` reports `mo
 - Tone: roast the situation, never identity. Serious/self-harm input → 0 aura and a kind note.
 
 ## Design (chosen by the user, don't regress)
-"Aura meter + captions", Gen Alpha. One screen, one thing: a giant aura number centred, tier name under it, a white composer card at the bottom. Nothing busy.
-- Page background IS the standing, flat bright colours via `body[data-tier]`: chopped `#ff4130` (<= -10000), crashout `#ff8a00` (-9999..-3000), fumble `#ff66ad` (-2999..-1), npc `#4fd1ff` (0..2999), farmer `#b8ff3c` (3000..9999), sigma `#ffe14a` (>= 10000). Ink `#111`, white surfaces. Font: Rubik.
-- After a verdict: the roast plays word-by-word as CapCut-style captions (white, thick black stroke, slang words in yellow), the amount slams in, then the number shakes/bounces and counts, then the verdict sheet slides up. Tap or Esc skips. Reduced motion skips the captions.
+"Aura meter + typewriter verdict", Gen Alpha and whimsical. One screen, one thing: giant aura number centred, tier as a dark tilted tag, white composer card at the bottom. Nothing busy.
+- Page background follows standing via `body[data-tier]`, soft candy colours (NO red background, user rejected it): chopped `#ffbf69` tangerine, crashout `#ffc6de` strawberry milk, fumble `#fff28a` lemon, npc `#ade6ff` sky, farmer `#c6f5a3` pistachio, sigma `#9ff0dd` mint. Ink `#1b1530`, white surfaces, floating SVG sparkles. Font: Fredoka.
+- Rizz line "Aura balances are not legal tender and cannot be exchanged for rizz." is a big white tilted banner at the top (user loves it, wanted it bigger).
+- Composer must make the call to action obvious: numbered steps ("1 Type what you did", "2 Get audited"), a pulsing dashed textarea while empty, "type here..." placeholder, example chips.
+- Verdict: full-screen card in the new tier colour; the roast TYPES OUT letter by letter (readable speed, pauses on punctuation; user said word-chunks were too fast), white text with thick ink stroke, slang words in yellow. Then title pops + amount slams (user likes this "fully chopped" moment). Tap 1 finishes typing, tap 2 continues; auto-continues after 6s. Then the number shakes/bounces and the verdict sheet slides up ("bet" closes it).
 - History lives in a "receipts" bottom sheet (Date | Description | Amount | Balance) with "Close account".
-- Keep the line "Aura balances are not legal tender and cannot be exchanged for rizz." at the top (user loves it).
-- Rejected: neobrutalism, receipt/ATM slip, Wrapped/chat/tabloid/terminal (all "too busy"). Prefer minimal + motion.
-- Avoid: gradients, glassmorphism, blur, glow, drop shadows, purple/indigo, emoji, full pill buttons, Inter, icon sets. Must work at 390px.
-- Visual check: headless Edge can't go below 504px wide, so render mobile inside a 390px iframe on the same origin.
+- Rejected: neobrutalism, receipt/ATM slip, Wrapped/chat/tabloid/terminal (all "too busy"), red backgrounds, fast word-chunk captions.
+- Avoid: gradients, glassmorphism, blur, glow, drop shadows, purple/indigo, emoji, full pill buttons, Inter, icon sets. Must work at 390px; reduced motion skips the verdict animation.
+- Visual check: headless Edge can't go below 504px wide (use a 390px iframe on the same origin), and it freezes CSS entrance animations under virtual time, so disable them when screenshotting end states.
 
 ## Deployment
 Target is **Vercel** (Python runtime, zero-config FastAPI: Vercel detects `app` in `main.py`). Set `ANTHROPIC_API_KEY` in the Vercel project's environment variables. Keep paths relative to `Path(__file__).parent`, keep the app stateless (serverless), and don't write to disk at runtime.
