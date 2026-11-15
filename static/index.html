@@ -27,6 +27,12 @@
   <header class="top">
     <p class="rizz">Aura balances are not legal tender and <span>cannot be exchanged for rizz.</span></p>
     <div class="top-actions">
+      <button type="button" class="icon" id="open-demo" aria-haspopup="dialog" aria-label="Watch the 60-second demo" title="Watch the demo">
+        <svg viewBox="0 0 32 32" aria-hidden="true">
+          <path d="M16 3.5 C24 3 29 9 28.5 16.5 C28 24 22 29 15.5 28.5 C8 28 3 22 3.5 15.5 C4 9 9 4 16 3.5 Z"/>
+          <path d="M12.5 10 L22 16 L12.5 22.5 Z"/>
+        </svg>
+      </button>
       <button type="button" class="icon" id="sound-toggle" aria-pressed="true" aria-label="Sound" title="Sound">
         <svg viewBox="0 0 32 32" aria-hidden="true">
           <path d="M5 13 L11 12 L18 6 L19 26 L11 20 L5 20 Z"/>
@@ -242,6 +248,17 @@
     </div>
     <p class="empty" id="empty">No cases on file. Suspiciously quiet.</p>
     <button type="button" class="mini danger" id="reset">Close account (reset)</button>
+  </section>
+
+  <!-- the 60-second demo (public/demo.mp4: served by Vercel's CDN, too big for the Python function) -->
+  <section class="sheet demo-sheet" id="demo" hidden role="dialog" aria-modal="true" aria-labelledby="demo-title">
+    <div class="sheet-head">
+      <h2 id="demo-title">The 60-second demo</h2>
+      <button type="button" class="mini" id="close-demo">close</button>
+    </div>
+    <video id="demo-video" controls playsinline preload="none" poster="/demo-poster.jpg">
+      <source src="/demo.mp4" type="video/mp4">
+    </video>
   </section>
 
   <!-- Most Wanted: the DeLARP Bureau's board -->

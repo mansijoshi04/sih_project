@@ -837,6 +837,21 @@ def health():
     return {"status": "solvent", "mock_mode": get_client() is None, "larp_enabled": bool(LARP_API_URL)}
 
 
+# Vercel serves public/ from its CDN (the 12 MB demo is over the 4.5 MB function response limit);
+# these routes only answer when running locally with uvicorn.
+PUBLIC_DIR = BASE_DIR / "public"
+
+
+@app.get("/demo.mp4")
+def demo_video():
+    return FileResponse(PUBLIC_DIR / "demo.mp4", media_type="video/mp4")
+
+
+@app.get("/demo-poster.jpg")
+def demo_poster():
+    return FileResponse(PUBLIC_DIR / "demo-poster.jpg", media_type="image/jpeg")
+
+
 @app.get("/")
 def index():
     return FileResponse(STATIC_DIR / "index.html")

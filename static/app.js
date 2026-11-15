@@ -18,6 +18,7 @@
     attach: $("attach"), shot: $("shot"), shotImg: $("shot-img"), shotX: $("shot-x"), shotFile: $("shot-file"),
     handle: $("handle"), plat: $("plat"), dossier: $("dossier"),
     wanted: $("wanted"), openWanted: $("open-wanted"), closeWanted: $("close-wanted"),
+    demo: $("demo"), demoVideo: $("demo-video"), openDemo: $("open-demo"), closeDemo: $("close-demo"),
     natDebt: $("nat-debt"), natCeiling: $("nat-ceiling"), posters: $("posters"), wantedSrc: $("wanted-src"),
   };
   const actionButtons = Array.from(document.querySelectorAll(".btn[data-mode]"));
@@ -574,6 +575,22 @@
     els.openWanted.focus({ preventScroll: true });
   }
   els.openWanted.addEventListener("click", () => { sfx.pop(); openWanted(); });
+
+  // ---------- the demo video ----------
+  function openDemo() {
+    els.scrim.hidden = false;
+    els.demo.hidden = false;
+    els.closeDemo.focus({ preventScroll: true });
+    try { const p = els.demoVideo.play(); if (p) p.catch(() => {}); } catch { /* user can press play */ }
+  }
+  function closeDemo() {
+    try { els.demoVideo.pause(); } catch { /* ignore */ }
+    els.scrim.hidden = true;
+    els.demo.hidden = true;
+    els.openDemo.focus({ preventScroll: true });
+  }
+  els.openDemo.addEventListener("click", () => { sfx.pop(); openDemo(); });
+  els.closeDemo.addEventListener("click", closeDemo);
   els.closeWanted.addEventListener("click", closeWanted);
 
   // ---------- the verdict: the judge speaks, then BANG ----------
@@ -788,7 +805,7 @@
   });
   els.openReceipts.addEventListener("click", () => { sfx.pop(); openLog(); });
   els.closeReceipts.addEventListener("click", closeLog);
-  els.scrim.addEventListener("click", () => (els.wanted.hidden ? closeLog() : closeWanted()));
+  els.scrim.addEventListener("click", () => (!els.demo.hidden ? closeDemo() : !els.wanted.hidden ? closeWanted() : closeLog()));
   document.addEventListener("keydown", (e) => {
     // 1 / 2 / 3 copy a reply while a "should I send?" verdict is up
     if (/^[123]$/.test(e.key) && !els.capResult.hidden && !els.verdict.hidden && !e.metaKey && !e.ctrlKey) {
@@ -800,6 +817,7 @@
     if (advance) advance();
     else if (!els.receipts.hidden) closeLog();
     else if (!els.wanted.hidden) closeWanted();
+    else if (!els.demo.hidden) closeDemo();
   });
   els.reset.addEventListener("click", () => {
     if (!confirm("Close this account? All aura history will be deleted.")) return;

@@ -31,7 +31,7 @@ body {
 }
 
 /* ---------- top: only the rizz line ---------- */
-.top { position: relative; display: flex; justify-content: center; align-items: center; padding: 14px 150px 4px; }
+.top { position: relative; display: flex; justify-content: center; align-items: center; padding: 14px 190px 4px; }
 .rizz { font-family: var(--marker); font-size: clamp(15px, 1.5vw, 19px); line-height: 1.2; text-align: center; color: var(--soft); }
 .rizz span { display: inline-block; color: var(--lime); filter: url(#boil-s); }
 .top-actions { position: absolute; right: 16px; top: 8px; display: flex; gap: 4px; }
@@ -355,6 +355,10 @@ td.c-date { white-space: nowrap; color: var(--soft); font-size: 14px; padding-to
 .empty { color: var(--soft); padding: 12px 0; }
 #reset { margin-top: 14px; }
 
+/* ---------- demo video ---------- */
+.demo-sheet { width: min(940px, calc(100% - 24px)); padding-bottom: 22px; }
+.demo-sheet video { display: block; width: 100%; aspect-ratio: 16 / 9; background: #000; border: 3px solid var(--lime); border-radius: 6px; }
+
 /* ---------- Most Wanted: paper posters pinned to the board ---------- */
 .wanted-sheet { width: min(760px, calc(100% - 24px)); }
 .natdebt { margin-bottom: 14px; color: var(--soft); font-size: 15px; }
@@ -381,7 +385,9 @@ td.c-date { white-space: nowrap; color: var(--soft); font-size: 14px; padding-to
 /* ---------- phones: judge on top, everything else underneath ---------- */
 @media (max-width: 820px) {
   :root { --desk-h: 262px; }
-  .top { padding: 10px 130px 2px 14px; }
+  .top { padding: 10px 150px 2px 14px; }
+  .top-actions { gap: 0; }
+  .icon { width: 35px; height: 35px; }
   .rizz { text-align: left; font-size: 14px; }
   .top-actions { right: 8px; top: 6px; }
   .score { left: 14px; top: 6px; }
